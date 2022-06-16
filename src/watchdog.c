@@ -70,7 +70,7 @@ struct WatchdogPack
 {
   size_t size;
   size_t registered;
-  Watchdog* pack[];
+  Watchdog* pack[]; // FAM
 };
 
 WatchdogPack* watchdogpack_create(register const size_t wdogs_number)
@@ -80,13 +80,14 @@ WatchdogPack* watchdogpack_create(register const size_t wdogs_number)
   
   WatchdogPack* wdog_pack;
 
-  wdog_pack = malloc(sizeof(WatchdogPack*) + (wdogs_number + 1) * sizeof(Watchdog*));
+  wdog_pack = malloc(sizeof(wdog_pack) + (wdogs_number + 1) * sizeof(Watchdog*));
 
   if (wdog_pack == NULL)
     return NULL;
 
-  wdog_pack->size = wdogs_number;
-  wdog_pack->registered = 0;
+  *wdog_pack = (WatchdogPack){.size = wdogs_number,
+                              .registered = 0,
+                             };
 
   for (size_t i = 0; i < wdogs_number; i++)
     wdog_pack->pack[i] = NULL;
