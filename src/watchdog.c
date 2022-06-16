@@ -102,7 +102,7 @@ size_t watchdogpack_get_size(register const WatchdogPack* wdog_pack) {
   return wdog_pack->size;
 }
 
-size_t watchdogpack_register(WatchdogPack* wdog_pack, register const Watchdog* wdog)
+int watchdogpack_register(WatchdogPack* wdog_pack, register const Watchdog* wdog)
 {
   if (wdog_pack->registered >= wdog_pack->size)
     return -1;
@@ -128,7 +128,7 @@ void watchdogpack_destroy(WatchdogPack* wdog_pack)
   free(wdog_pack);
 }
 
-size_t watchdogpack_check_alarms(register const WatchdogPack* wdog_pack)
+int watchdogpack_check_alarms(register const WatchdogPack* wdog_pack)
 { 
   for (size_t i = 0; i < wdog_pack->registered; i++)
   {
@@ -137,5 +137,5 @@ size_t watchdogpack_check_alarms(register const WatchdogPack* wdog_pack)
       return i;
     }
   }
-  return wdog_pack->size + 1;
+  return -1;
 }

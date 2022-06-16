@@ -61,18 +61,18 @@ static void watchdogpack_test(void)
   size_t dog3_id = watchdogpack_register(pack, dog3);
   assert(watchdogpack_get_registered(pack) == 3);
   // ALARMS CHECK TEST
-  size_t res = watchdogpack_check_alarms(pack);
-  assert(res == watchdogpack_get_size(pack) + 1);
-  printf("Dog with id %zu barked.\n", res);
+  int res = watchdogpack_check_alarms(pack);
+  assert(res == -1);
+  printf("Dog with id %d barked.\n", res);
   
   sleep(1);
   res = watchdogpack_check_alarms(pack);
-  printf("Dog with id %zu barked.\n", res);
+  printf("Dog with id %d barked.\n", res);
   assert(res == 2);
   
   sleep(2);
   res = watchdogpack_check_alarms(pack);
-  printf("Dog with id %zu barked.\n", res);
+  printf("Dog with id %d barked.\n", res);
   assert(res == 0);
   // UNREGISTER TEST
   watchdogpack_unregister(pack, dog1_id);
