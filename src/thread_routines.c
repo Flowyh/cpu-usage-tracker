@@ -106,7 +106,7 @@ void* reader_thread(void* arg)
     return NULL;
 
   pthread_t tid = pthread_self();
-  Watchdog* wdog = watchdog_create(tid, WATCHDOG_LIMIT);
+  Watchdog* wdog = watchdog_create(tid, WATCHDOG_LIMIT, "Reader");
 
   if (wdog == NULL)
     return NULL;
@@ -124,6 +124,11 @@ void* reader_thread(void* arg)
     printf("READING\n");
     watchdog_snooze(wdog);
     reader_rewind(proc_stat_reader);
+    if (proc_stat_reader->f == NULL)
+    { 
+      printf("READER: Error while reopening %s file\n", proc_stat_reader->path);
+      break;
+    }
     uint8_t* packet = reader_read_proc_stat(proc_stat_reader);
     
     pcpbuffer_lock(reader_analyzer_buffer);
@@ -160,7 +165,7 @@ void* watchdog_thread(void* arg)
     alarm_check = watchdogpack_check_alarms(wdog_pack);
     if (alarm_check != -1)
     {
-      printf("A dog with id=%d has barked\n", alarm_check);
+      printf("A dog with name %s has barked\n", watchdogpack_get_dog_name(wdog_pack, alarm_check));
       break;
     }
     sleep(WATCHDOG_SLEEP);
@@ -176,7 +181,7 @@ void* analyzer_thread(void* arg)
   (void)arg;
 
   pthread_t tid = pthread_self();
-  Watchdog* wdog = watchdog_create(tid, WATCHDOG_LIMIT);
+  Watchdog* wdog = watchdog_create(tid, WATCHDOG_LIMIT, "Analyzer");
 
   if (wdog == NULL)
     return NULL;
@@ -217,15 +222,16 @@ void* analyzer_thread(void* arg)
     pcpbuffer_wake_producer(reader_analyzer_buffer);
     pcpbuffer_unlock(reader_analyzer_buffer);
 
+    // Analyze read packet
     uint8_t* analyzer_packet = malloc(analyzer_packet_size);
 
+    printf("ANALYZER: Analyzed core:\n");
     for (size_t i = 0; i < cpu_cores + 1; i++)
     {
       ProcStatWrapper* curr_stats = procstatwrapper_create();
       ProcStatWrapper* prev_stats = procstatwrapper_create();
       memcpy(&curr_stats[0], &curr[i * core_info_size], core_info_size);
 
-      printf("ANALYZER: Current core stats:\n"); 
       procstatwrapper_print(curr_stats);
 
       if (!prev_set)
@@ -235,7 +241,6 @@ void* analyzer_thread(void* arg)
 
       AnalyzerPacket* analyzed_core = analyzer_cpu_usage_packet(prev_stats, curr_stats);
       memcpy(&analyzer_packet[i * analyzed_core_size], &analyzed_core[0], analyzed_core_size); 
-      printf("ANALYZER: Analyzed core:\n");
       analyzerpacket_print(analyzed_core);
 
       analyzerpacket_destroy(analyzed_core);

@@ -26,14 +26,21 @@ Reader* reader_create(register const char* const path, register const size_t rea
 
   *reader = (Reader){.f = fopen(path, "r"),
                      .read_interval = read_interval,
+                     .path = path,
                     };
 
   return reader;
 }
 
-void reader_rewind(register const Reader* const reader)
+void reader_rewind(Reader* reader)
 {
-  rewind(reader->f);
+  // https://stackoverflow.com/a/16267995/18870209
+  // Apparently fseeking/rewinding doesn't help with rereading updated /proc/stat file
+  // You have to manually close and reopen the file to read new contents.
+  fclose(reader->f);
+  reader->f = fopen(reader->path, "r");
+  // rewind(reader->f);
+  // fseek(reader->f, 0, SEEK_SET);
 }
 
 // void reader_read_once(register const Reader* const reader, register const reader_func_t reader_func)

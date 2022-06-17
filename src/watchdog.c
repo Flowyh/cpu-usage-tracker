@@ -7,9 +7,10 @@ struct Watchdog
   struct timespec alarm_clock; // 16
   pthread_t id; // 8
   double limit; // 8
+  const char* name;
 };
 
-Watchdog* watchdog_create(register const pthread_t tid, register const double limit)
+Watchdog* watchdog_create(register const pthread_t tid, register const double limit, register const char* const name)
 {
   if (limit < 0.0) // Invalid time limit
     return NULL;
@@ -19,7 +20,8 @@ Watchdog* watchdog_create(register const pthread_t tid, register const double li
     return NULL;
 
   *watchdog = (Watchdog){.id = tid,
-                         .limit = limit
+                         .limit = limit,
+                         .name = name,
                         };
   (void) clock_gettime(CLOCK_MONOTONIC, &watchdog->alarm_clock);
 
@@ -103,11 +105,17 @@ size_t watchdogpack_get_size(register const WatchdogPack* const wdog_pack) {
   return wdog_pack->size;
 }
 
+const char* watchdogpack_get_dog_name(register const WatchdogPack* const wdog_pack, register const size_t wdog_id)
+{
+  if (wdog_pack->pack[wdog_id] != NULL)
+    return wdog_pack->pack[wdog_id]->name;
+  return NULL;
+}
+
 int watchdogpack_register(WatchdogPack* wdog_pack, register const Watchdog* const wdog)
 {
   if (wdog_pack->registered >= wdog_pack->size)
     return -1;
-  printf("NEW DOG REGISTERED FROM: %zu\n", wdog->id); 
   wdog_pack->pack[wdog_pack->registered++] = (Watchdog*) wdog;
   return wdog_pack->registered - 1;
 }

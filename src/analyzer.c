@@ -17,7 +17,6 @@ AnalyzerPacket* analyzerpacket_create(const char* name)
 
   strcpy(&packet->core_name[0], name);
 
-  // memcpy(&packet->core_name[0], &name[0], name_len);
   packet->cpu_percentage = 0.0;
 
   return packet;
@@ -41,21 +40,9 @@ AnalyzerPacket* analyzer_cpu_usage_packet(const ProcStatWrapper* prev_stats, con
   if (strcmp(prev_stats->core_name, curr_stats->core_name) != 0) // If core names don't match
     return NULL;
 
-  // PrevIdle = previdle + previowait
-  // Idle = idle + iowait
+  // https://stackoverflow.com/questions/23367857/accurate-calculation-of-cpu-usage-given-in-percentage-in-linux
 
-  // PrevNonIdle = prevuser + prevnice + prevsystem + previrq + prevsoftirq + prevsteal
-  // NonIdle = user + nice + system + irq + softirq + steal
-
-  // PrevTotal = PrevIdle + PrevNonIdle
-  // Total = Idle + NonIdle
-
-  // # differentiate: actual value minus the previous one
-  // totald = Total - PrevTotal
-  // idled = Idle - PrevIdle
-
-  // CPU_Percentage = (totald - idled)/totald
-
+  // I've typecasted everything just to be sure that everything will be ok
   double prev_idle = (double) prev_stats->idle + (double) prev_stats->iowait;
   double curr_idle = (double) curr_stats->idle + (double) curr_stats->iowait;
 
@@ -75,7 +62,7 @@ AnalyzerPacket* analyzer_cpu_usage_packet(const ProcStatWrapper* prev_stats, con
 
   double cpu_core_percentage = (total_diff - idle_diff) / total_diff;
   
-  if (total_diff == 0.0)
+  if (total_diff == 0.0) // Div by zero case
     cpu_core_percentage = 0.0;
 
   packet->cpu_percentage = cpu_core_percentage;
