@@ -1,4 +1,5 @@
 #include "../inc/threads_routines.h"
+#include "../inc/procstat_wrapper.h"
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
@@ -24,14 +25,9 @@ static WatchdogPack* wdog_pack;
 static pthread_t tid[THREADS_COUNT]; // 0 - watchdog, 1 - reader, 2 - analyzer, 3 - printer, 4 - logger
 // EXIT FLAG
 static bool exit_flag = false;
-
 // STATIC DECLARATIONS
 static size_t reader_get_packet_size(void);
 static size_t analyzer_get_packet_size(void);
-// /proc/stat READ WRAPPER
-typedef struct ProcStatWrapper ProcStatWrapper;
-static ProcStatWrapper* procstatwrapper_create(void);
-static void procstatwrapper_destroy(ProcStatWrapper* stats);
 // Reader func
 static uint8_t* reader_read_proc_stat(register const Reader* const reader);
 
@@ -57,32 +53,6 @@ static size_t analyzer_get_packet_size(void)
 {
   size_t cores = sysconf(_SC_NPROCESSORS_ONLN);
   return (sizeof(char[10]) + sizeof(size_t)) * (cores + 1);
-}
-
-struct ProcStatWrapper {
-  char core_name[10];
-  size_t user;
-  size_t nice;
-  size_t system;
-  size_t idle;
-  size_t iowait;
-  size_t irq;
-  size_t softirq;
-  size_t steal;
-  size_t guest;
-  size_t guest_nice;
-};
-
-static ProcStatWrapper* procstatwrapper_create(void)
-{
-  ProcStatWrapper* stats;
-  stats = malloc(sizeof(*stats));
-  return stats;
-}
-
-static void procstatwrapper_destroy(ProcStatWrapper* stats)
-{
-  free(stats);
 }
 
 static uint8_t* reader_read_proc_stat(register const Reader* const reader)
