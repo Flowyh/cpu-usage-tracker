@@ -36,11 +36,10 @@ PCPBuffer* pcpbuffer_create(register const size_t packet_size, register const si
                         .current_packets = (size_t) 0,
                         .head = (size_t) 0,
                         .tail = (size_t) 0,
+                        .mutex = PTHREAD_MUTEX_INITIALIZER,
+                        .can_produce = PTHREAD_COND_INITIALIZER,
+                        .can_consume = PTHREAD_COND_INITIALIZER,
                        };
-
-  pthread_mutex_init(&buffer->mutex, NULL);
-  pthread_cond_init(&buffer->can_produce, NULL);
-  pthread_cond_init(&buffer->can_consume, NULL);
 
   return buffer;
 }
@@ -50,27 +49,27 @@ size_t pcpbuffer_get_packet_size(register const PCPBuffer* buff)
   return buff->packet_size;
 }
 
-size_t pcpbuffer_get_current_packets(const PCPBuffer* buff)
+size_t pcpbuffer_get_current_packets(register const PCPBuffer* buff)
 {
   return buff->current_packets;
 }
 
-size_t pcpbuffer_get_packet_limit(const PCPBuffer* buff)
+size_t pcpbuffer_get_packet_limit(register const PCPBuffer* buff)
 {
   return buff->packet_limit;
 }
 
-bool pcpbuffer_is_full(const PCPBuffer* buff)
+bool pcpbuffer_is_full(register const PCPBuffer* buff)
 {
   return buff->current_packets == buff->packet_limit;
 }
 
-bool pcpbuffer_is_empty(const PCPBuffer* buff)
+bool pcpbuffer_is_empty(register const PCPBuffer* buff)
 {
   return buff->current_packets == 0;
 }
 
-void pcpbuffer_put(PCPBuffer* buff, register const uint8_t packet[], register const size_t packet_size)
+void pcpbuffer_put(PCPBuffer* buff, register const uint8_t packet[const], register const size_t packet_size)
 {
   if (pcpbuffer_is_full(buff))
     return;

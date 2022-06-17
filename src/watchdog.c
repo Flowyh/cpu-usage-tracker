@@ -50,7 +50,7 @@ static double timespec_to_seconds(register const struct timespec ts)
 //   return timespec_to_seconds(wdog->alarm_clock);
 // }
 
-int watchdog_is_alarm_expired(register const Watchdog* wdog)
+int watchdog_is_alarm_expired(register const Watchdog* const wdog)
 {
   if (wdog == NULL)
     return -1;
@@ -95,19 +95,19 @@ WatchdogPack* watchdogpack_create(register const size_t wdogs_number)
   return wdog_pack;
 }
 
-size_t watchdogpack_get_registered(register const WatchdogPack* wdog_pack) {
+size_t watchdogpack_get_registered(register const WatchdogPack* const wdog_pack) {
   return wdog_pack->registered;
 }
 
-size_t watchdogpack_get_size(register const WatchdogPack* wdog_pack) {
+size_t watchdogpack_get_size(register const WatchdogPack* const wdog_pack) {
   return wdog_pack->size;
 }
 
-int watchdogpack_register(WatchdogPack* wdog_pack, register const Watchdog* wdog)
+int watchdogpack_register(WatchdogPack* wdog_pack, register const Watchdog* const wdog)
 {
   if (wdog_pack->registered >= wdog_pack->size)
     return -1;
-  
+  printf("NEW DOG REGISTERED FROM: %zu\n", wdog->id); 
   wdog_pack->pack[wdog_pack->registered++] = (Watchdog*) wdog;
   return wdog_pack->registered - 1;
 }
@@ -129,7 +129,7 @@ void watchdogpack_destroy(WatchdogPack* wdog_pack)
   free(wdog_pack);
 }
 
-int watchdogpack_check_alarms(register const WatchdogPack* wdog_pack)
+int watchdogpack_check_alarms(register const WatchdogPack* const wdog_pack)
 { 
   for (size_t i = 0; i < wdog_pack->registered; i++)
   {

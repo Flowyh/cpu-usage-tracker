@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <inttypes.h>
 
 void reader_invalid_create_test(void)
 {
@@ -55,7 +56,7 @@ void reader_rewind_test(void)
   reader_destroy(reader);
 }
 
-void dummy_func(const Reader* reader)
+uint8_t* dummy_func(const Reader* reader)
 {
   char test[5];
   int one_two_three[1];
@@ -63,6 +64,7 @@ void dummy_func(const Reader* reader)
   (void) scan;
   printf("Test: %s, 123: %d\n", test, one_two_three[0]);
   assert(one_two_three[0] == 123);
+  return NULL;
 }
 
 void reader_dummy_func_test(void)

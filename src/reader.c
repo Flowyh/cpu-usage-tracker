@@ -36,12 +36,12 @@ void reader_rewind(register const Reader* const reader)
   rewind(reader->f);
 }
 
-void reader_read_once(register const Reader* const reader, register const reader_func_t reader_func)
-{
-  reader_rewind(reader);
-  reader_func(reader);
-  sleep(reader->read_interval); 
-}
+// void reader_read_once(register const Reader* const reader, register const reader_func_t reader_func)
+// {
+//   reader_rewind(reader);
+//   reader_func(reader);
+//   sleep(reader->read_interval); 
+// }
 
 void reader_destroy(Reader* reader)
 {
