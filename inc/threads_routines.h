@@ -5,6 +5,7 @@
 #include "../inc/watchdog.h"
 #include "../inc/pcp_buffer.h"
 #include "../inc/analyzer.h"
+#include "../inc/logger.h"
 #include <unistd.h>
 
 void signal_exit(void);

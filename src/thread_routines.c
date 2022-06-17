@@ -7,13 +7,28 @@
 
 
 #define MAIN_BUFFERS_LIMIT 10
-#define LOGGER_BUFFER_LIMIT 5
+#define LOGGER_BUFFER_LIMIT 50
 #define LOGGER_PACKET_SIZE 1024
 #define THREADS_COUNT 5
 #define WATCHDOG_LIMIT 2
 #define WATCHDOG_SLEEP 1
 #define READER_SLEEP 1
 #define ANALYZER_SLEEP 1
+
+#define logger_put(buffer, type, size, __format) \
+    do { \
+      snprintf(buffer, size, __format); \
+      logger_put_to_buffer(buffer, type); \
+      memset(buffer, 0, size); \
+    } while(0)
+
+#define logger_put_args(buffer, type, size, __format, ...) \
+    do { \
+      snprintf(buffer, size, __format, __VA_ARGS__); \
+      logger_put_to_buffer(buffer, type); \
+      memset(buffer, 0, size); \
+    } while(0)
+
 
 // BUFFERS
 static PCPBuffer* restrict reader_analyzer_buffer;
@@ -42,15 +57,35 @@ void signal_exit(void)
   pcpbuffer_wake_producer(reader_analyzer_buffer);
   pcpbuffer_wake_consumer(analyzer_printer_buffer);
   pcpbuffer_wake_producer(analyzer_printer_buffer);
+  pcpbuffer_wake_consumer(logger_buffer);
+  pcpbuffer_wake_producer(logger_buffer);
   exit_flag = true;
+}
+
+// Buffer should be padded to LOGGER_PACKET_SIZE
+void logger_put_to_buffer(char buffer[], const enum LogType level)
+{
+  uint8_t* packet = malloc(LOGGER_PACKET_SIZE);
+  packet[0] = (uint8_t) level;
+  memcpy(&packet[1], &buffer[0], LOGGER_PACKET_SIZE - 1);
+  pcpbuffer_lock(logger_buffer);
+  if (pcpbuffer_is_full(logger_buffer))
+  {
+    pcpbuffer_wait_for_consumer(logger_buffer);
+  }
+  pcpbuffer_put(logger_buffer, packet, LOGGER_PACKET_SIZE);
+  pcpbuffer_wake_consumer(logger_buffer);
+  pcpbuffer_unlock(logger_buffer);
+  free(packet);
 }
 
 void sigterm_graceful_exit(int signum)
 {
-  printf("Signal caught! Signum: %d\n", signum);
+  char buffer[LOGGER_PACKET_SIZE];
+  logger_put_args(buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "Signal caught! Signum: %d.\n", signum);
+  printf("Signal caught! Signum. %d\n", signum);
   signal_exit();
 }
-
 
 static size_t reader_get_packet_size(void)
 {
@@ -88,7 +123,7 @@ static uint8_t* reader_read_proc_stat(register const Reader* const reader)
       &stats_wrapper->guest_nice
     );
 
-    procstatwrapper_print(stats_wrapper);
+    // procstatwrapper_print(stats_wrapper);
 
     (void)fscan_result;
     memcpy(&packet[one_core * i], &stats_wrapper[0], one_core);
@@ -101,9 +136,13 @@ void* reader_thread(void* arg)
 {
   (void)(arg);
   Reader* proc_stat_reader = reader_create("/proc/stat", READER_SLEEP);
+  char log_buffer[LOGGER_PACKET_SIZE];
   
+
   if (proc_stat_reader == NULL)
     return NULL;
+
+  logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[READER] Creating watchdog.\n");
 
   pthread_t tid = pthread_self();
   Watchdog* wdog = watchdog_create(tid, WATCHDOG_LIMIT, "Reader");
@@ -111,40 +150,55 @@ void* reader_thread(void* arg)
   if (wdog == NULL)
     return NULL;
 
+  logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[READER] Registering watchdog.\n");
+
   int wdog_register_status = watchdogpack_register(wdog_pack, wdog);
   
   if (wdog_register_status == -1)
     return NULL;
+
 
   while(true)
   {
     if (exit_flag)
       break;
 
-    printf("READING\n");
+    logger_put(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[READER] Snoozing watchdog.\n");
+
     watchdog_snooze(wdog);
+
+    logger_put(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[READER] Rewinding reader.\n");
+
     reader_rewind(proc_stat_reader);
     if (proc_stat_reader->f == NULL)
     { 
-      printf("READER: Error while reopening %s file\n", proc_stat_reader->path);
+      logger_put_args(log_buffer, LOGTYPE_ERROR, LOGGER_PACKET_SIZE, "[READER] Error while reopening %s file.\n", proc_stat_reader->path);
       break;
     }
+
+    logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[READER] Reading from file.\n");
+
     uint8_t* packet = reader_read_proc_stat(proc_stat_reader);
     
     pcpbuffer_lock(reader_analyzer_buffer);
     if (pcpbuffer_is_full(reader_analyzer_buffer))
     {
+      logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[READER] Buffer is full, waiting for consumer.\n");
       pcpbuffer_wait_for_consumer(reader_analyzer_buffer);
+      logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[READER] Consumer signaled. Continuing.\n");
     }
+    logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[READER] Sending packet.\n");
     pcpbuffer_put(reader_analyzer_buffer, packet, reader_packet_size);
     pcpbuffer_wake_consumer(reader_analyzer_buffer);
     pcpbuffer_unlock(reader_analyzer_buffer);
 
     free(packet);
+    logger_put_args(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[READER] Sleeping for %zu.\n", proc_stat_reader->read_interval);
     sleep(proc_stat_reader->read_interval);
   }
   
-  printf("Reader: Exit signaled. Exitting\n");
+  logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[READER] Exit signaled. Exitting.\n");
+  printf("[READER] Exit signaled. Exitting.\n");
   reader_destroy(proc_stat_reader);
   watchdogpack_unregister(wdog_pack, wdog_register_status);
   watchdog_destroy(wdog);
@@ -155,23 +209,26 @@ void* watchdog_thread(void* arg)
 {
   (void)arg;
   int alarm_check;
+  char log_buffer[LOGGER_PACKET_SIZE];
 
   while(true)
   {
     if (exit_flag)
       break;
+
+    logger_put(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[WATCHDOG] Checking alarms.\n");
     
-    printf("WATCHING\n");
     alarm_check = watchdogpack_check_alarms(wdog_pack);
     if (alarm_check != -1)
-    {
-      printf("A dog with name %s has barked\n", watchdogpack_get_dog_name(wdog_pack, alarm_check));
+    {;
+      logger_put_args(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, 
+        "[WATCHDOG] A dog with name %s has barked.\n", watchdogpack_get_dog_name(wdog_pack, alarm_check));
       break;
     }
     sleep(WATCHDOG_SLEEP);
   }
-  
-  printf("Watchdog: Exit signaled. Exitting\n");
+  logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[WATCHDOG] Exit signaled. Exitting.\n");
+  printf("[WATCHDOG] Exit signaled. Exitting.\n");
   signal_exit();
   return NULL;
 }
@@ -179,12 +236,17 @@ void* watchdog_thread(void* arg)
 void* analyzer_thread(void* arg)
 {
   (void)arg;
+  char log_buffer[LOGGER_PACKET_SIZE];
+
+  logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Creating watchdog.\n");
 
   pthread_t tid = pthread_self();
   Watchdog* wdog = watchdog_create(tid, WATCHDOG_LIMIT, "Analyzer");
 
   if (wdog == NULL)
     return NULL;
+
+  logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Registering watchdog.\n");
 
   int wdog_register_status = watchdogpack_register(wdog_pack, wdog);
   
@@ -195,7 +257,6 @@ void* analyzer_thread(void* arg)
   size_t analyzed_core_size = sizeof(AnalyzerPacket);
 
   uint8_t* prev = malloc(reader_packet_size);
-
   bool prev_set = false;
 
   while(true)
@@ -203,36 +264,41 @@ void* analyzer_thread(void* arg)
     if (exit_flag)
       break;
 
-    printf("ANALYZING\n");
+    logger_put(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[ANALYZER] Snoozing watchdog.\n");
+
     watchdog_snooze(wdog);
+
+    logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Reading from buffer.\n");
 
     // Consumer - get packet from reader-analyzer buffer
     pcpbuffer_lock(reader_analyzer_buffer);
     if (pcpbuffer_is_empty(reader_analyzer_buffer))
     {
-      printf("ANALYZER: Waiting for reader\n");
+      logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Buffer is empty, waiting for producer.\n");
       pcpbuffer_wait_for_producer(reader_analyzer_buffer);
-      printf("ANALYZER: Reader signaled\n");
+      logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Producer signaled. Continuing.\n");
     }
 
     if (exit_flag) // Possible bottleneck 
       break;
+    
+    logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Acquiring packet.\n");
     
     uint8_t* curr = pcpbuffer_get(reader_analyzer_buffer);
     pcpbuffer_wake_producer(reader_analyzer_buffer);
     pcpbuffer_unlock(reader_analyzer_buffer);
 
     // Analyze read packet
+    logger_put(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[ANALYZER] Analyzing read packet.\n");
     uint8_t* analyzer_packet = malloc(analyzer_packet_size);
 
-    printf("ANALYZER: Analyzed core:\n");
     for (size_t i = 0; i < cpu_cores + 1; i++)
     {
       ProcStatWrapper* curr_stats = procstatwrapper_create();
       ProcStatWrapper* prev_stats = procstatwrapper_create();
       memcpy(&curr_stats[0], &curr[i * core_info_size], core_info_size);
 
-      procstatwrapper_print(curr_stats);
+      // procstatwrapper_print(curr_stats);
 
       if (!prev_set)
         memcpy(&prev[0], &curr[0], reader_packet_size);
@@ -241,24 +307,31 @@ void* analyzer_thread(void* arg)
 
       AnalyzerPacket* analyzed_core = analyzer_cpu_usage_packet(prev_stats, curr_stats);
       memcpy(&analyzer_packet[i * analyzed_core_size], &analyzed_core[0], analyzed_core_size); 
-      analyzerpacket_print(analyzed_core);
+      // analyzerpacket_print(analyzed_core);
 
       analyzerpacket_destroy(analyzed_core);
       procstatwrapper_destroy(curr_stats);
       procstatwrapper_destroy(prev_stats);
     }
 
+
+    logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Sending to next buffer.\n");
+
     // Producer - put packet in analyzer-printer buffer
     pcpbuffer_lock(analyzer_printer_buffer);
     if (pcpbuffer_is_full(analyzer_printer_buffer))
     {
+      logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Next buffer is full, waiting for consumer.\n");
       pcpbuffer_wait_for_consumer(analyzer_printer_buffer);
+      logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Consumer signaled. Continuing.\n");
     }
+    logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Sending packet.\n");
     pcpbuffer_put(analyzer_printer_buffer, analyzer_packet, analyzer_packet_size);
     pcpbuffer_wake_consumer(analyzer_printer_buffer);
     pcpbuffer_unlock(analyzer_printer_buffer);
     
     // Copy to previous state
+    logger_put(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[ANALYZER] Copying to previous state.\n");
     memcpy(&prev[0], &curr[0], reader_packet_size);
     // One time flag
     prev_set = true;
@@ -266,11 +339,62 @@ void* analyzer_thread(void* arg)
     free(curr);
   }
   
-  printf("Analyzer: Exit signaled. Exitting\n");
+  logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Exit signaled. Exitting.\n");
+  printf("[ANALYZER] Exit signaled. Exitting.\n");
   free(prev);
   watchdogpack_unregister(wdog_pack, wdog_register_status);
   watchdog_destroy(wdog);
   return NULL;
+}
+
+void* logger_thread(void* arg)
+{
+  Logger* logger = *(Logger**)arg;
+
+  pthread_t tid = pthread_self();
+  Watchdog* wdog = watchdog_create(tid, WATCHDOG_LIMIT, "Logger");
+
+  if (wdog == NULL)
+    return NULL;
+
+  int wdog_register_status = watchdogpack_register(wdog_pack, wdog);
+  
+  if (wdog_register_status == -1)
+    return NULL;
+
+  while(true)
+  {
+    if (exit_flag && pcpbuffer_is_empty(logger_buffer))
+      break;
+
+    watchdog_snooze(wdog);
+    
+    // Consumer
+    pcpbuffer_lock(logger_buffer);
+    if (pcpbuffer_is_empty(logger_buffer))
+      pcpbuffer_wait_for_producer(logger_buffer);
+    
+    if (exit_flag && pcpbuffer_is_empty(logger_buffer))
+      break;
+
+    char* curr = (char*) pcpbuffer_get(logger_buffer);
+    pcpbuffer_wake_producer(logger_buffer);
+    pcpbuffer_unlock(logger_buffer);
+
+    char* buffer = malloc(LOGGER_PACKET_SIZE - 1);
+    memcpy(&buffer[0], &curr[1], LOGGER_PACKET_SIZE - 1);
+
+    logger_log(logger, (enum LogType) curr[0], buffer);
+    free(curr);
+    free(buffer);
+    if (pcpbuffer_is_empty(logger_buffer))
+      sleep(1);
+  }
+
+  printf("LOGGER: Exit signaled. Exitting.\n");
+  watchdogpack_unregister(wdog_pack, wdog_register_status);
+  watchdog_destroy(wdog);
+  return NULL; 
 }
 
 void run_threads(void)
@@ -284,14 +408,24 @@ void run_threads(void)
   logger_buffer = pcpbuffer_create(LOGGER_PACKET_SIZE, LOGGER_BUFFER_LIMIT);
   wdog_pack = watchdogpack_create(THREADS_COUNT);
 
+  char log_name[256];
+  char* datetime_str = datetime_to_str();
+  snprintf(log_name, 256, "./log/cpu_usage_tracker_%s.log", datetime_str);
+  free(datetime_str);
+    
+  Logger* logger = logger_create(log_name, LOGTYPE_INFO);
+
   pthread_create(&tid[0], NULL, watchdog_thread, NULL);
   pthread_create(&tid[1], NULL, reader_thread, NULL);
   pthread_create(&tid[2], NULL, analyzer_thread, NULL);
+  pthread_create(&tid[4], NULL, logger_thread, (void*)&logger);
 
   pthread_join(tid[0], NULL);
   pthread_join(tid[1], NULL);
   pthread_join(tid[2], NULL);
+  pthread_join(tid[4], NULL);
 
+  logger_destroy(logger);
   pcpbuffer_destroy(reader_analyzer_buffer);
   pcpbuffer_destroy(analyzer_printer_buffer);
   pcpbuffer_destroy(logger_buffer);
