@@ -2,7 +2,11 @@
 #include <signal.h>
 #include <string.h>
 
-int main() {
+int main(int argc, char const *argv[])
+{
+  (void)argc;
+  (void)argv;
+
   // Assign SIGTERM/SIGINT handlers
   struct sigaction action;
   memset(&action, 0, sizeof(action));

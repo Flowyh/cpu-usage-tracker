@@ -124,12 +124,12 @@ void pcpbuffer_wake_consumer(PCPBuffer* buff)
 
 void pcpbuffer_wait_for_producer(PCPBuffer* buff)
 {
-  pthread_cond_wait(&buff->can_produce, &buff->mutex);
+  pthread_cond_wait(&buff->can_consume, &buff->mutex);
 }
 
 void pcpbuffer_wait_for_consumer(PCPBuffer* buff)
 {
-  pthread_cond_wait(&buff->can_consume, &buff->mutex);
+  pthread_cond_wait(&buff->can_produce, &buff->mutex);
 }
 
 void pcpbuffer_destroy(PCPBuffer* buff)

@@ -4,6 +4,7 @@
 #include "../inc/reader.h"
 #include "../inc/watchdog.h"
 #include "../inc/pcp_buffer.h"
+#include "../inc/analyzer.h"
 #include <unistd.h>
 
 void signal_exit(void);

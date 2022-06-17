@@ -4,7 +4,7 @@
 #include <unistd.h>
 
 typedef struct ProcStatWrapper {
-  char core_name[10];
+  char core_name[16];
   size_t user;
   size_t nice;
   size_t system;
@@ -19,5 +19,6 @@ typedef struct ProcStatWrapper {
 
 ProcStatWrapper* procstatwrapper_create(void);
 void procstatwrapper_destroy(ProcStatWrapper* stats);
+void procstatwrapper_print(const ProcStatWrapper* stats_wrapper);
 
 #endif // !PROCSTAT_WRAPPER_H
