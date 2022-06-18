@@ -54,6 +54,9 @@ const char* modes_get(register const enum Modes mode)
 char* printer_histogram_horizontal_bar(register const size_t width, register const double fill)
 {
   char* restrict histogram = malloc(HISTOGRAM_HORIZONTAL_BAR_LIMIT);
+
+  if (histogram == NULL)  
+    return NULL;
   
   histogram[0] = '[';
   histogram[1] = '\0';
@@ -87,6 +90,10 @@ char* printer_histogram_horizontal_bar(register const size_t width, register con
   register const size_t histogram_len = strlen(histogram);
 
   char* restrict result = malloc(histogram_len + 1);
+
+  if (result == NULL)
+    return NULL;
+
   memcpy(&result[0], &histogram[0], histogram_len);
   result[histogram_len] = '\0';
 
@@ -97,6 +104,10 @@ char* printer_histogram_horizontal_bar(register const size_t width, register con
 char* printer_print_line(register const size_t width, register const char line_char)
 {
   char* restrict line = malloc(width + 1);
+
+  if (line == NULL)
+    return NULL;
+
   for(size_t i = 0; i < width; i++)
     line[i] = line_char;
   line[width] = '\0';
@@ -117,6 +128,10 @@ void printer_pretty_cpu_usage(register char* names[const], register const double
   char* const restrict datetime_start = "Date: ";
   char* const restrict datetime_str = datetime_to_str();
   char* restrict date = malloc(strlen(datetime_start) + strlen(datetime_str) + 1);
+
+  if (date == NULL)
+    return;
+
   date[0] = '\0';
   strcat(date, datetime_start);
   strcat(date, datetime_str);

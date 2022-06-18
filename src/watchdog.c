@@ -16,6 +16,7 @@ Watchdog* watchdog_create(register const pthread_t tid, register const double li
     return NULL;
 
   Watchdog* restrict watchdog = malloc(sizeof(*watchdog));
+  
   if (watchdog == NULL)
     return NULL;
 

@@ -15,8 +15,10 @@ struct Logger
 char* datetime_to_str(void)
 {
   char* datetime_str = malloc(50);
-  // struct timespec spec_now;
-  // clock_gettime(CLOCK_MONOTONIC, &spec_now);
+
+  if (datetime_str == NULL)
+    return NULL;
+  
   const time_t now = time(NULL);
   struct tm* restrict t = localtime(&now);
 

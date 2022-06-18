@@ -5,6 +5,10 @@
 ProcStatWrapper* procstatwrapper_create(void)
 {
   ProcStatWrapper* restrict stats = malloc(sizeof(*stats));
+
+  if (stats == NULL)
+    return NULL;
+
   *stats = (ProcStatWrapper){
                             .user = 0.0,
                             .nice = 0.0,

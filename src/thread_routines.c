@@ -64,6 +64,10 @@ void signal_exit(void)
 static void logger_put_to_buffer (register const char buffer[const], register const enum LogType level)
 {
   uint8_t* restrict packet = malloc(LOGGER_PACKET_SIZE);
+
+  if (packet == NULL)
+    return;
+
   packet[0] = (uint8_t) level;
   memcpy(&packet[1], &buffer[0], LOGGER_PACKET_SIZE - 1);
   pcpbuffer_lock(logger_buffer);
@@ -101,6 +105,10 @@ static uint8_t* reader_read_proc_stat(register const Reader* const restrict read
 {
   ProcStatWrapper* restrict stats_wrapper = procstatwrapper_create();
   uint8_t* restrict packet = malloc(reader_packet_size);
+
+  if (packet == NULL)
+    return NULL;
+
   register const size_t one_core = sizeof(ProcStatWrapper);
 
   int fscan_result;
@@ -252,6 +260,12 @@ static void* analyzer_thread(void* arg)
   register const size_t analyzed_core_size = sizeof(AnalyzerPacket);
 
   uint8_t* restrict prev = malloc(reader_packet_size);
+
+  if (prev == NULL)
+  {
+    signal_exit();
+  }
+
   bool prev_set = false;
 
   while(true)
@@ -280,12 +294,25 @@ static void* analyzer_thread(void* arg)
     logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Acquiring packet.\n");
     
     uint8_t* restrict const curr = pcpbuffer_get(reader_analyzer_buffer);
+
+    if (curr == NULL)
+    {
+      signal_exit();
+      break;
+    }
+
     pcpbuffer_wake_producer(reader_analyzer_buffer);
     pcpbuffer_unlock(reader_analyzer_buffer);
 
     // Analyze read packet
     logger_put(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[ANALYZER] Analyzing read packet.\n");
     uint8_t* restrict analyzer_packet = malloc(analyzer_packet_size);
+
+    if (analyzer_packet == NULL)
+    {
+      signal_exit();
+      break;
+    }
 
     for (size_t i = 0; i < cpu_cores + 1; i++)
     {
@@ -376,7 +403,20 @@ static void* logger_thread(void* arg)
     pcpbuffer_wake_producer(logger_buffer);
     pcpbuffer_unlock(logger_buffer);
 
+    if (packet == NULL)
+    {
+      signal_exit();
+      break;
+    }
+
     char* restrict buffer = malloc(LOGGER_PACKET_SIZE - 1);
+
+    if (buffer == NULL)
+    {
+      signal_exit();
+      break;
+    }
+
     memcpy(&buffer[0], &packet[1], LOGGER_PACKET_SIZE - 1);
 
     logger_log(logger, (enum LogType) packet[0], buffer);
@@ -448,9 +488,23 @@ static void* printer_thread(void* arg)
     for (size_t i = 0; i < cpu_cores + 1; i++)
     {
       AnalyzerPacket* restrict analyzed_core = malloc(analyzed_core_size);
+
+      if (analyzed_core == NULL)
+      {
+        signal_exit();
+        break;
+      }
+
       memcpy(&analyzed_core[0], &packet[i * analyzed_core_size], analyzed_core_size);
       // strncpy(names[i], analyzed_core->core_name, CORE_NAME_LENGTH);
       names[i] = malloc(CORE_NAME_LENGTH + 1);
+
+      if (names[i] == NULL)
+      {
+        signal_exit();
+        break;
+      }
+
       strncpy(names[i], analyzed_core->core_name, CORE_NAME_LENGTH + 1);
       names[i][CORE_NAME_LENGTH - 1] = '\0';
       double percent = analyzed_core->cpu_percentage;

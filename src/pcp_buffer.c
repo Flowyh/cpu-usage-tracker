@@ -93,6 +93,9 @@ uint8_t* pcpbuffer_get(PCPBuffer* restrict buff)
   uint8_t* restrict packet;
   packet = malloc(sizeof(packet) * buff->packet_size);
 
+  if (packet == NULL)
+    return NULL;
+
   register const size_t packet_start = buff->packet_size * buff->tail;
 
   memcpy(&packet[0], &buff->buffer[packet_start], buff->packet_size);
