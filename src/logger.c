@@ -8,6 +8,7 @@ struct Logger
 {
   FILE* restrict f;
   enum LogType level;
+  char pad[4];
   pthread_mutex_t mutex;
 };
 

@@ -12,7 +12,6 @@
 #define WATCHDOG_LIMIT 2
 #define WATCHDOG_SLEEP 1
 #define READER_SLEEP 1
-#define ANALYZER_SLEEP 1
 
 #define logger_put(buffer, type, size, __format) \
     do { \
@@ -62,7 +61,7 @@ void signal_exit(void)
 }
 
 // Buffer should be padded to LOGGER_PACKET_SIZE
-void logger_put_to_buffer(register const char buffer[const], register const enum LogType level)
+static void logger_put_to_buffer (register const char buffer[const], register const enum LogType level)
 {
   uint8_t* restrict packet = malloc(LOGGER_PACKET_SIZE);
   packet[0] = (uint8_t) level;
@@ -88,13 +87,13 @@ void sigterm_graceful_exit(int signum)
 
 static size_t reader_get_packet_size(void)
 {
-  register const size_t cores = sysconf(_SC_NPROCESSORS_ONLN);
+  register const size_t cores = (size_t) sysconf(_SC_NPROCESSORS_ONLN);
   return (sizeof(ProcStatWrapper)) * (cores + 1);
 }
 
 static size_t analyzer_get_packet_size(void)
 {
-  register const size_t cores = sysconf(_SC_NPROCESSORS_ONLN);
+  register const size_t cores = (size_t) sysconf(_SC_NPROCESSORS_ONLN);
   return (sizeof(AnalyzerPacket) * (cores + 1));
 }
 
@@ -128,7 +127,7 @@ static uint8_t* reader_read_proc_stat(register const Reader* const restrict read
   return packet;
 }
 
-void* reader_thread(void* arg)
+static void* reader_thread(void* arg)
 {
   (void)(arg);
   Reader* restrict proc_stat_reader = reader_create("/proc/stat", READER_SLEEP);
@@ -140,8 +139,8 @@ void* reader_thread(void* arg)
 
   logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[READER] Creating watchdog.\n");
 
-  register const pthread_t tid = pthread_self();
-  Watchdog* restrict const wdog = watchdog_create(tid, WATCHDOG_LIMIT, "Reader");
+  register const pthread_t thread_id = pthread_self();
+  Watchdog* restrict const wdog = watchdog_create(thread_id, WATCHDOG_LIMIT, "Reader");
 
   if (wdog == NULL)
     return NULL;
@@ -190,18 +189,18 @@ void* reader_thread(void* arg)
 
     free(packet);
     logger_put_args(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[READER] Sleeping for %zu.\n", proc_stat_reader->read_interval);
-    sleep(proc_stat_reader->read_interval);
+    sleep((unsigned int) proc_stat_reader->read_interval);
   }
   
   logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[READER] Exit signaled. Exitting.\n");
   printf("[READER] Exit signaled. Exitting.\n");
   reader_destroy(proc_stat_reader);
-  watchdogpack_unregister(wdog_pack, wdog_register_status);
+  watchdogpack_unregister(wdog_pack, (size_t) wdog_register_status);
   watchdog_destroy(wdog);
   return NULL;
 }
 
-void* watchdog_thread(void* arg)
+static void* watchdog_thread(void* arg)
 {
   (void)arg;
   int alarm_check;
@@ -216,9 +215,9 @@ void* watchdog_thread(void* arg)
     
     alarm_check = watchdogpack_check_alarms(wdog_pack);
     if (alarm_check != -1)
-    {;
+    {
       logger_put_args(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, 
-        "[WATCHDOG] A dog with name %s has barked.\n", watchdogpack_get_dog_name(wdog_pack, alarm_check));
+        "[WATCHDOG] A dog with name %s has barked.\n", watchdogpack_get_dog_name(wdog_pack, (size_t) alarm_check));
       break;
     }
     sleep(WATCHDOG_SLEEP);
@@ -229,15 +228,15 @@ void* watchdog_thread(void* arg)
   return NULL;
 }
 
-void* analyzer_thread(void* arg)
+static void* analyzer_thread(void* arg)
 {
   (void)arg;
   char log_buffer[LOGGER_PACKET_SIZE];
 
   logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Creating watchdog.\n");
 
-  register const pthread_t tid = pthread_self();
-  Watchdog* restrict const wdog = watchdog_create(tid, WATCHDOG_LIMIT, "Analyzer");
+  register const pthread_t thread_id = pthread_self();
+  Watchdog* restrict const wdog = watchdog_create(thread_id, WATCHDOG_LIMIT, "Analyzer");
 
   if (wdog == NULL)
     return NULL;
@@ -338,17 +337,17 @@ void* analyzer_thread(void* arg)
   logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Exit signaled. Exitting.\n");
   printf("[ANALYZER] Exit signaled. Exitting.\n");
   free(prev);
-  watchdogpack_unregister(wdog_pack, wdog_register_status);
+  watchdogpack_unregister(wdog_pack, (size_t) wdog_register_status);
   watchdog_destroy(wdog);
   return NULL;
 }
 
-void* logger_thread(void* arg)
+static void* logger_thread(void* arg)
 {
   Logger* restrict logger = *(Logger**)arg;
 
-  register const pthread_t tid = pthread_self();
-  Watchdog* restrict const wdog = watchdog_create(tid, WATCHDOG_LIMIT, "Logger");
+  register const pthread_t thread_id = pthread_self();
+  Watchdog* restrict const wdog = watchdog_create(thread_id, WATCHDOG_LIMIT, "Logger");
 
   if (wdog == NULL)
     return NULL;
@@ -388,20 +387,20 @@ void* logger_thread(void* arg)
   }
 
   printf("[LOGGER] Exit signaled. Exitting.\n");
-  watchdogpack_unregister(wdog_pack, wdog_register_status);
+  watchdogpack_unregister(wdog_pack, (size_t) wdog_register_status);
   watchdog_destroy(wdog);
   return NULL; 
 }
 
-void* printer_thread(void* arg)
+static void* printer_thread(void* arg)
 {
   (void)arg;
   char log_buffer[LOGGER_PACKET_SIZE];
 
   logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[PRINTER] Creating watchdog.\n");
 
-  register const pthread_t tid = pthread_self();
-  Watchdog* restrict const wdog = watchdog_create(tid, WATCHDOG_LIMIT, "Printer");
+  register const pthread_t thread_id = pthread_self();
+  Watchdog* restrict const wdog = watchdog_create(thread_id, WATCHDOG_LIMIT, "Printer");
 
   if (wdog == NULL)
     return NULL;
@@ -472,7 +471,7 @@ void* printer_thread(void* arg)
   }
 
   printf("[PRINTER] Exit signaled. Exitting.\n");
-  watchdogpack_unregister(wdog_pack, wdog_register_status);
+  watchdogpack_unregister(wdog_pack, (size_t) wdog_register_status);
   watchdog_destroy(wdog);
   return NULL; 
   
@@ -481,7 +480,7 @@ void* printer_thread(void* arg)
 void run_threads(void)
 {
   // Init statics
-  cpu_cores = sysconf(_SC_NPROCESSORS_ONLN);
+  cpu_cores = (size_t) sysconf(_SC_NPROCESSORS_ONLN);
   reader_packet_size = reader_get_packet_size();
   reader_analyzer_buffer = pcpbuffer_create(reader_packet_size, MAIN_BUFFERS_LIMIT);
   analyzer_packet_size = analyzer_get_packet_size();
@@ -494,7 +493,7 @@ void run_threads(void)
   snprintf(log_name, 256, "./log/cpu_usage_tracker_%s.log", datetime_str);
   free(datetime_str);
     
-  Logger* const restrict logger = logger_create(log_name, LOGTYPE_INFO);
+  Logger* logger = logger_create(log_name, LOGTYPE_INFO);
 
   pthread_create(&tid[0], NULL, watchdog_thread, NULL);
   pthread_create(&tid[1], NULL, reader_thread, NULL);

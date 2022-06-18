@@ -111,6 +111,7 @@ static void pcpbuffer_put_get_test(void)
   pcpbuffer_destroy(buffer);
 }
 
+void pcpbuffer_tests(void);
 void pcpbuffer_tests(void)
 {
   RUN_TEST(pcpbuffer_create_test);

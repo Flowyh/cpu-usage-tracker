@@ -7,7 +7,7 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
-void reader_invalid_create_test(void)
+static void reader_invalid_create_test(void)
 {
   // Non-existent file
   Reader* reader = reader_create("./nonexistent", 2);
@@ -32,7 +32,7 @@ void reader_invalid_create_test(void)
   reader_destroy(reader);
 }
 
-void reader_valid_path_test(void)
+static void reader_valid_path_test(void)
 {
   Reader* reader = reader_create("./test/reader_test", 2);
   bool is_null = reader == NULL;
@@ -41,22 +41,22 @@ void reader_valid_path_test(void)
   reader_destroy(reader);
 }
 
-void reader_rewind_test(void)
+static void reader_rewind_test(void)
 {
   Reader* reader = reader_create("./test/reader_test", 2);
   fseek(reader->f, 0, SEEK_END);
-  size_t reader_cursor = ftell(reader->f);
+  size_t reader_cursor = (size_t) ftell(reader->f);
   printf("Current reader position: %zu\n", reader_cursor);
   assert(reader_cursor == 8);
   printf("Rewinding . . .\n");
   reader_rewind(reader);
-  reader_cursor = ftell(reader->f);
+  reader_cursor = (size_t) ftell(reader->f);
   printf("Current reader position: %zu\n", reader_cursor);
   assert(reader_cursor == 0);
   reader_destroy(reader);
 }
 
-void reader_dummy_func_test(void)
+static void reader_dummy_func_test(void)
 {
   Reader* reader = reader_create("./test/reader_test", 2);
 
@@ -70,7 +70,8 @@ void reader_dummy_func_test(void)
   reader_destroy(reader);
 }
 
-void reader_tests()
+void reader_tests(void);
+void reader_tests(void)
 {
   RUN_TEST(reader_invalid_create_test);
   RUN_TEST(reader_valid_path_test);

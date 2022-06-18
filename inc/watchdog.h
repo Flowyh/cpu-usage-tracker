@@ -17,7 +17,7 @@ WatchdogPack* watchdogpack_create(const size_t wdogs_number);
 size_t watchdogpack_get_registered(const WatchdogPack* wdog_pack);
 size_t watchdogpack_get_size(const WatchdogPack* wdog_pack);
 const char* watchdogpack_get_dog_name(const WatchdogPack* wdog_pack, const size_t wdog_id);
-int watchdogpack_register(WatchdogPack* wdog_pack, const Watchdog* wdog);
+int watchdogpack_register(WatchdogPack* wdog_pack, Watchdog* wdog);
 void watchdogpack_unregister(WatchdogPack* wdog_pack, size_t wdog_id);
 void watchdogpack_destroy(WatchdogPack* wdog_pack);
 int watchdogpack_check_alarms(const WatchdogPack* wdog_pack);

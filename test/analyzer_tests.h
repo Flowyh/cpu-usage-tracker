@@ -78,6 +78,7 @@ static void analyzer_cpu_usage_test(void)
   procstatwrapper_destroy(curr2);
 }
 
+void analyzer_tests(void);
 void analyzer_tests(void)
 {
   RUN_TEST(analyzerpacket_create_test);

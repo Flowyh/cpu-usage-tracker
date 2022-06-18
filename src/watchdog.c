@@ -104,12 +104,12 @@ const char* watchdogpack_get_dog_name(register const WatchdogPack* const restric
   return NULL;
 }
 
-int watchdogpack_register(WatchdogPack* restrict wdog_pack, register const Watchdog* const restrict wdog)
+int watchdogpack_register(WatchdogPack* restrict wdog_pack, Watchdog* restrict wdog)
 {
   if (wdog_pack->registered >= wdog_pack->size)
     return -1;
-  wdog_pack->pack[wdog_pack->registered++] = (Watchdog*) wdog;
-  return wdog_pack->registered - 1;
+  wdog_pack->pack[wdog_pack->registered++] = wdog;
+  return (int)(wdog_pack->registered - 1);
 }
 
 void watchdogpack_unregister(WatchdogPack* restrict wdog_pack, size_t wdog_id)
@@ -135,7 +135,7 @@ int watchdogpack_check_alarms(register const WatchdogPack* const restrict wdog_p
   {
     if (wdog_pack->pack[i] != NULL && watchdog_is_alarm_expired(wdog_pack->pack[i]) == 1)
     {
-      return i;
+      return (int) i;
     }
   }
   return -1;

@@ -51,17 +51,17 @@ static void watchdogpack_test(void)
   assert(watchdogpack_get_size(pack) == 3);
   // REGISTER TEST
   Watchdog* dog1 = watchdog_create(pthread_self(), 2, "dog1");
-  size_t dog1_id = watchdogpack_register(pack, dog1);
+  size_t dog1_id = (size_t) watchdogpack_register(pack, dog1);
   assert(watchdogpack_get_registered(pack) == 1);
   assert(strcmp(watchdogpack_get_dog_name(pack, dog1_id), "dog1") == 0);
 
   Watchdog* dog2 = watchdog_create(pthread_self(), 3, "dog2");
-  size_t dog2_id = watchdogpack_register(pack, dog2);
+  size_t dog2_id = (size_t) watchdogpack_register(pack, dog2);
   assert(watchdogpack_get_registered(pack) == 2);
   assert(strcmp(watchdogpack_get_dog_name(pack, dog2_id), "dog2") == 0);
   
   Watchdog* dog3 = watchdog_create(pthread_self(), 1, "dog3");
-  size_t dog3_id = watchdogpack_register(pack, dog3);
+  size_t dog3_id = (size_t) watchdogpack_register(pack, dog3);
   assert(watchdogpack_get_registered(pack) == 3);
   assert(strcmp(watchdogpack_get_dog_name(pack, dog3_id), "dog3") == 0);
   // ALARMS CHECK TEST
@@ -71,12 +71,12 @@ static void watchdogpack_test(void)
   
   sleep(1);
   res = watchdogpack_check_alarms(pack);
-  printf("Dog with id %d, name %s barked.\n", res, watchdogpack_get_dog_name(pack, res));
+  printf("Dog with id %d, name %s barked.\n", res, watchdogpack_get_dog_name(pack, (size_t) res));
   assert(res == 2);
   
   sleep(2);
   res = watchdogpack_check_alarms(pack);
-  printf("Dog with id %d, name %s barked.\n", res, watchdogpack_get_dog_name(pack, res));
+  printf("Dog with id %d, name %s barked.\n", res, watchdogpack_get_dog_name(pack, (size_t) res));
   assert(res == 0);
   // UNREGISTER TEST
   watchdogpack_unregister(pack, dog1_id);
@@ -92,6 +92,7 @@ static void watchdogpack_test(void)
   watchdog_destroy(dog3);
 }
 
+void watchdog_tests(void);
 void watchdog_tests(void)
 {
   RUN_TEST(watchdog_expiration_test);

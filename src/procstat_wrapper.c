@@ -4,8 +4,19 @@
 
 ProcStatWrapper* procstatwrapper_create(void)
 {
-  ProcStatWrapper* restrict stats;
-  stats = malloc(sizeof(*stats));
+  ProcStatWrapper* restrict stats = malloc(sizeof(*stats));
+  *stats = (ProcStatWrapper){
+                            .user = 0.0,
+                            .nice = 0.0,
+                            .system = 0.0,
+                            .idle = 0.0,
+                            .iowait = 0.0,
+                            .irq = 0.0,
+                            .softirq = 0.0,
+                            .steal = 0.0,
+                            .guest = 0.0,
+                            .guest_nice = 0.0
+                            };
   return stats;
 }
 

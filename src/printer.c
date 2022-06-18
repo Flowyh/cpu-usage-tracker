@@ -31,11 +31,11 @@ const char* modes_get(register const enum Modes mode)
     return "";
 
   const char* restrict const modes_str[] = {
-    "\e[0m", // Reset
-    "\e[1m", // Bold
-    "\e[3m", // Italic
-    "\e[4m", // Underline
-    "\e[9m", // Strike
+    "\033[0m", // Reset
+    "\033[1m", // Bold
+    "\033[3m", // Italic
+    "\033[4m", // Underline
+    "\033[9m", // Strike
   };
 
   return modes_str[mode];
@@ -44,7 +44,7 @@ const char* modes_get(register const enum Modes mode)
 #define HISTOGRAM_HORIZONTAL_BAR_EMPTY " "
 #define HISTOGRAM_HORIZONTAL_BAR_FILL ":"
 #define HISTOGRAM_HORIZONTAL_BAR_LIMIT 2000
-#define HISTOGRAM_HORIZONTAL_BAR_SEPARATOR_COLOR WHITE
+// #define HISTOGRAM_HORIZONTAL_BAR_SEPARATOR_COLOR WHITE
 #define HISTOGRAM_HORIZONTAL_BAR_BASE_COLOR GREEN
 #define HISTOGRAM_HORIZONTAL_BAR_MID_VAL 0.5
 #define HISTOGRAM_HORIZONTAL_BAR_MID_COLOR YELLOW
@@ -58,11 +58,11 @@ char* printer_histogram_horizontal_bar(register const size_t width, register con
   histogram[0] = '[';
   histogram[1] = '\0';
 
-  size_t color = HISTOGRAM_HORIZONTAL_BAR_BASE_COLOR;
+  enum Colors color = HISTOGRAM_HORIZONTAL_BAR_BASE_COLOR;
   strcat(histogram, colors_get(color));
   for (size_t i = 0; i < width; i++)
   {
-    register const double current_block = (double) (i+1) / width;
+    register const double current_block = (double) (i+1) / (double) width;
     if (current_block > fill)
       strcat(histogram, HISTOGRAM_HORIZONTAL_BAR_EMPTY);
     else
