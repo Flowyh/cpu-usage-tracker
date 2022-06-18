@@ -6,7 +6,7 @@
 
 struct Logger
 {
-  FILE* f;
+  FILE* restrict f;
   enum LogType level;
   pthread_mutex_t mutex;
 };
@@ -16,14 +16,14 @@ char* datetime_to_str(void)
   char* datetime_str = malloc(50);
   // struct timespec spec_now;
   // clock_gettime(CLOCK_MONOTONIC, &spec_now);
-  time_t now = time(NULL);
-  struct tm *t = localtime(&now);
+  const time_t now = time(NULL);
+  struct tm* restrict t = localtime(&now);
 
   strftime(datetime_str, 49, "%d-%m-%Y %H:%M:%S", t);
   return datetime_str;
 }
 
-static const char* logtype_to_str(const enum LogType type) {
+static const char* logtype_to_str(register const enum LogType type) {
   if (type < LOGTYPE_ERROR || type > LOGTYPE_DEBUG)
     return "????";
   // Jump table (sort of)
@@ -31,15 +31,15 @@ static const char* logtype_to_str(const enum LogType type) {
   return logtype_str[type];
 }
 
-static void print_log_prefix(register const Logger* const logger, const enum LogType type) {
+static void print_log_prefix(register const Logger* const restrict logger, register const enum LogType type) {
   char* datetime_str = datetime_to_str();
   fprintf(logger->f, "[%s][%s]", logtype_to_str(type), datetime_str);
   free(datetime_str);
 }
 
-Logger* logger_create(const char* path, enum LogType level)
+Logger* logger_create(register const char* const restrict path, enum LogType level)
 {
-  Logger* logger;
+  Logger* restrict logger;
   logger = malloc(sizeof(*logger));
   
   if (logger == NULL)
@@ -58,11 +58,11 @@ Logger* logger_create(const char* path, enum LogType level)
   return logger;
 }
 
-void logger_set_level(Logger* logger, const enum LogType level) {
+void logger_set_level(Logger* restrict logger, register const enum LogType level) {
   logger->level = level;
 }
 
-void logger_log(register const Logger* const logger, const enum LogType level, const char* msg) {
+void logger_log(register const Logger* const restrict logger, register const enum LogType level, register const char* const restrict msg) {
   if (logger->level < level)
     return;
 

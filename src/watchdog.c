@@ -10,12 +10,12 @@ struct Watchdog
   const char* name;
 };
 
-Watchdog* watchdog_create(register const pthread_t tid, register const double limit, register const char* const name)
+Watchdog* watchdog_create(register const pthread_t tid, register const double limit, register const char* restrict const name)
 {
   if (limit < 0.0) // Invalid time limit
     return NULL;
 
-  Watchdog* watchdog = malloc(sizeof(*watchdog));
+  Watchdog* restrict watchdog = malloc(sizeof(*watchdog));
   if (watchdog == NULL)
     return NULL;
 
@@ -28,11 +28,11 @@ Watchdog* watchdog_create(register const pthread_t tid, register const double li
   return watchdog;
 }
 
-void watchdog_snooze(Watchdog* wdog) {
+void watchdog_snooze(Watchdog* restrict wdog) {
   if (wdog == NULL)
     return; // Dog doesn't exist
 
-  pthread_t self_id = pthread_self();
+  register const pthread_t self_id = pthread_self();
   if (wdog->id != self_id)
     return; // Snoozing wrong dog
 
@@ -44,15 +44,7 @@ static double timespec_to_seconds(register const struct timespec ts)
   return (double)(ts.tv_sec) + (double)(ts.tv_nsec) * 1e-9;
 }
 
-// static double watchdog_get_alarm_timestamp(const Watchdog* wdog)
-// {
-//   if (wdog == NULL)
-//     return -1;
-
-//   return timespec_to_seconds(wdog->alarm_clock);
-// }
-
-int watchdog_is_alarm_expired(register const Watchdog* const wdog)
+int watchdog_is_alarm_expired(register const Watchdog* restrict const wdog)
 {
   if (wdog == NULL)
     return -1;
@@ -63,7 +55,7 @@ int watchdog_is_alarm_expired(register const Watchdog* const wdog)
   return (diff) >= wdog->limit; 
 }
 
-void watchdog_destroy(Watchdog* wdog)
+void watchdog_destroy(Watchdog* restrict wdog)
 {
   free(wdog);
 }
@@ -72,7 +64,7 @@ struct WatchdogPack
 {
   size_t size;
   size_t registered;
-  Watchdog* pack[]; // FAM
+  Watchdog* restrict pack[]; // FAM
 };
 
 WatchdogPack* watchdogpack_create(register const size_t wdogs_number)
@@ -80,7 +72,7 @@ WatchdogPack* watchdogpack_create(register const size_t wdogs_number)
   if (wdogs_number == 0)
     return NULL;
   
-  WatchdogPack* wdog_pack;
+  WatchdogPack* restrict wdog_pack;
 
   wdog_pack = malloc(sizeof(wdog_pack) + (wdogs_number + 1) * sizeof(Watchdog*));
 
@@ -97,22 +89,22 @@ WatchdogPack* watchdogpack_create(register const size_t wdogs_number)
   return wdog_pack;
 }
 
-size_t watchdogpack_get_registered(register const WatchdogPack* const wdog_pack) {
+size_t watchdogpack_get_registered(register const WatchdogPack* const restrict wdog_pack) {
   return wdog_pack->registered;
 }
 
-size_t watchdogpack_get_size(register const WatchdogPack* const wdog_pack) {
+size_t watchdogpack_get_size(register const WatchdogPack* const restrict wdog_pack) {
   return wdog_pack->size;
 }
 
-const char* watchdogpack_get_dog_name(register const WatchdogPack* const wdog_pack, register const size_t wdog_id)
+const char* watchdogpack_get_dog_name(register const WatchdogPack* const restrict wdog_pack, register const size_t wdog_id)
 {
   if (wdog_pack->pack[wdog_id] != NULL)
     return wdog_pack->pack[wdog_id]->name;
   return NULL;
 }
 
-int watchdogpack_register(WatchdogPack* wdog_pack, register const Watchdog* const wdog)
+int watchdogpack_register(WatchdogPack* restrict wdog_pack, register const Watchdog* const restrict wdog)
 {
   if (wdog_pack->registered >= wdog_pack->size)
     return -1;
@@ -120,7 +112,7 @@ int watchdogpack_register(WatchdogPack* wdog_pack, register const Watchdog* cons
   return wdog_pack->registered - 1;
 }
 
-void watchdogpack_unregister(WatchdogPack* wdog_pack, size_t wdog_id)
+void watchdogpack_unregister(WatchdogPack* restrict wdog_pack, size_t wdog_id)
 {
   if (wdog_pack->registered == 0)
     return;
@@ -132,12 +124,12 @@ void watchdogpack_unregister(WatchdogPack* wdog_pack, size_t wdog_id)
   }
 }
 
-void watchdogpack_destroy(WatchdogPack* wdog_pack)
+void watchdogpack_destroy(WatchdogPack* restrict wdog_pack)
 {
   free(wdog_pack);
 }
 
-int watchdogpack_check_alarms(register const WatchdogPack* const wdog_pack)
+int watchdogpack_check_alarms(register const WatchdogPack* const restrict wdog_pack)
 { 
   for (size_t i = 0; i < wdog_pack->registered; i++)
   {

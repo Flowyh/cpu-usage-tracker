@@ -5,12 +5,12 @@
 #include <stdio.h>
 #include "../inc/logger.h"
 
-const char* colors_get(const enum Colors color)
+const char* colors_get(register const enum Colors color)
 {
   if (color < COLOR_RESET || color > CYAN)
     return "";
   
-  const char* colors_str[] = {
+  const char* restrict const colors_str[] = {
     "\x1b[0m", // Reset
     "\x1b[31m", // Red
     "\x1b[32m", // Green
@@ -25,12 +25,12 @@ const char* colors_get(const enum Colors color)
   return colors_str[color];
 }
 
-const char* modes_get(const enum Modes mode)
+const char* modes_get(register const enum Modes mode)
 {
   if (mode < MODE_RESET || mode > MODE_STRIKE)
     return "";
 
-  const char* modes_str[] = {
+  const char* restrict const modes_str[] = {
     "\e[0m", // Reset
     "\e[1m", // Bold
     "\e[3m", // Italic
@@ -40,7 +40,6 @@ const char* modes_get(const enum Modes mode)
 
   return modes_str[mode];
 }
-
 
 #define HISTOGRAM_HORIZONTAL_BAR_EMPTY " "
 #define HISTOGRAM_HORIZONTAL_BAR_FILL ":"
@@ -52,9 +51,9 @@ const char* modes_get(const enum Modes mode)
 #define HISTOGRAM_HORIZONTAL_BAR_CRIT_VAL 0.8
 #define HISTOGRAM_HORIZONTAL_BAR_CRIT_COLOR RED
 
-char* printer_histogram_horizontal_bar(const size_t width, const double fill)
+char* printer_histogram_horizontal_bar(register const size_t width, register const double fill)
 {
-  char* histogram = malloc(HISTOGRAM_HORIZONTAL_BAR_LIMIT);
+  char* restrict histogram = malloc(HISTOGRAM_HORIZONTAL_BAR_LIMIT);
   
   histogram[0] = '[';
   histogram[1] = '\0';
@@ -63,7 +62,7 @@ char* printer_histogram_horizontal_bar(const size_t width, const double fill)
   strcat(histogram, colors_get(color));
   for (size_t i = 0; i < width; i++)
   {
-    double current_block = (double) (i+1) / width;
+    register const double current_block = (double) (i+1) / width;
     if (current_block > fill)
       strcat(histogram, HISTOGRAM_HORIZONTAL_BAR_EMPTY);
     else
@@ -85,9 +84,9 @@ char* printer_histogram_horizontal_bar(const size_t width, const double fill)
   strcat(histogram, colors_get(COLOR_RESET));
   strcat(histogram, "]");
 
-  const size_t histogram_len = strlen(histogram);
+  register const size_t histogram_len = strlen(histogram);
 
-  char* result = malloc(histogram_len + 1);
+  char* restrict result = malloc(histogram_len + 1);
   memcpy(&result[0], &histogram[0], histogram_len);
   result[histogram_len] = '\0';
 
@@ -95,9 +94,9 @@ char* printer_histogram_horizontal_bar(const size_t width, const double fill)
   return result;
 }
 
-char* printer_print_line(const size_t width, const char line_char)
+char* printer_print_line(register const size_t width, register const char line_char)
 {
-  char* line = malloc(width + 1);
+  char* restrict line = malloc(width + 1);
   for(size_t i = 0; i < width; i++)
     line[i] = line_char;
   line[width] = '\0';
@@ -113,11 +112,11 @@ char* printer_print_line(const size_t width, const char line_char)
   I've wanted to make some things more generic, but I'm too tired to fix it.
   Those randoms additions/substractions were picked experimentally.
 */
-void printer_pretty_cpu_usage(char* names[const], const double percentages[const], const size_t cores)
+void printer_pretty_cpu_usage(register char* names[const], register const double percentages[const], register const size_t cores)
 {
-  char* datetime_start = "Date: ";
-  char* datetime_str = datetime_to_str();
-  char* date = malloc(strlen(datetime_start) + strlen(datetime_str) + 1);
+  char* const restrict datetime_start = "Date: ";
+  char* const restrict datetime_str = datetime_to_str();
+  char* restrict date = malloc(strlen(datetime_start) + strlen(datetime_str) + 1);
   date[0] = '\0';
   strcat(date, datetime_start);
   strcat(date, datetime_str);
@@ -125,7 +124,7 @@ void printer_pretty_cpu_usage(char* names[const], const double percentages[const
   size_t longest_name = strlen(names[cores - 1]);
   size_t cpu_usage_space = longest_name + PRETTY_CPU_USAGE_HIST_WIDTH + 2 + 9;
   size_t datetime_pad = (cpu_usage_space - strlen(date)) / 2 + strlen(date) + 1;
-  char* top_bot_line = printer_print_line(3 + cpu_usage_space, PRETTY_CPU_USAGE_HORIZONTAL_LINE);
+  char* const restrict top_bot_line = printer_print_line(3 + cpu_usage_space, PRETTY_CPU_USAGE_HORIZONTAL_LINE);
 
   printf("%c%s%c\n", PRETTY_CPU_USAGE_CORNER, top_bot_line, PRETTY_CPU_USAGE_CORNER);
   printf("%c%*s%*s%c\n", PRETTY_CPU_USAGE_VERTICAL_LINE, (int) (datetime_pad), date, (int) (datetime_pad - strlen(date) + 2), " ", PRETTY_CPU_USAGE_VERTICAL_LINE);
@@ -133,7 +132,7 @@ void printer_pretty_cpu_usage(char* names[const], const double percentages[const
 
   for (size_t i = 0; i < cores; i++)
   {
-    char* histogram = printer_histogram_horizontal_bar(PRETTY_CPU_USAGE_HIST_WIDTH, percentages[i]);
+    char* const restrict histogram = printer_histogram_horizontal_bar(PRETTY_CPU_USAGE_HIST_WIDTH, percentages[i]);
     size_t percents_width = percentages[i] > 10.0 ? 7 : 6;
     
     printf("%c %s%*s%s %*.2f%%  %c\n", PRETTY_CPU_USAGE_VERTICAL_LINE, names[i], (int) (longest_name - strlen(names[i]) + 1), " ", histogram, (int) percents_width, percentages[i] * 100, PRETTY_CPU_USAGE_VERTICAL_LINE);

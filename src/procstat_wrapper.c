@@ -4,17 +4,17 @@
 
 ProcStatWrapper* procstatwrapper_create(void)
 {
-  ProcStatWrapper* stats;
+  ProcStatWrapper* restrict stats;
   stats = malloc(sizeof(*stats));
   return stats;
 }
 
-void procstatwrapper_destroy(ProcStatWrapper* stats)
+void procstatwrapper_destroy(ProcStatWrapper* restrict stats)
 {
   free(stats);
 }
 
-void procstatwrapper_print(register const ProcStatWrapper* const stats_wrapper)
+void procstatwrapper_print(register const ProcStatWrapper* const restrict stats_wrapper)
 {
   printf("%s %zu %zu %zu %zu %zu %zu %zu %zu %zu %zu\n", 
     stats_wrapper->core_name,
