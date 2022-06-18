@@ -4,8 +4,6 @@
 #include "../inc/procstat_wrapper.h"
 #include <stdint.h>
 
-#define CORE_NAME_LENGTH 16
-
 typedef struct AnalyzerPacket {
   char core_name[CORE_NAME_LENGTH];
   double cpu_percentage;

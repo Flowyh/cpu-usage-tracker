@@ -3,8 +3,10 @@
 
 #include <unistd.h>
 
+#define CORE_NAME_LENGTH 16
+
 typedef struct ProcStatWrapper {
-  char core_name[16];
+  char core_name[CORE_NAME_LENGTH];
   size_t user;
   size_t nice;
   size_t system;

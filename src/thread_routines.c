@@ -5,7 +5,6 @@
 #include <inttypes.h>
 #include <pthread.h>
 
-
 #define MAIN_BUFFERS_LIMIT 10
 #define LOGGER_BUFFER_LIMIT 50
 #define LOGGER_PACKET_SIZE 1024
@@ -377,24 +376,109 @@ void* logger_thread(void* arg)
     if (exit_flag && pcpbuffer_is_empty(logger_buffer))
       break;
 
-    char* curr = (char*) pcpbuffer_get(logger_buffer);
+    char* packet = (char*) pcpbuffer_get(logger_buffer);
     pcpbuffer_wake_producer(logger_buffer);
     pcpbuffer_unlock(logger_buffer);
 
     char* buffer = malloc(LOGGER_PACKET_SIZE - 1);
-    memcpy(&buffer[0], &curr[1], LOGGER_PACKET_SIZE - 1);
+    memcpy(&buffer[0], &packet[1], LOGGER_PACKET_SIZE - 1);
 
-    logger_log(logger, (enum LogType) curr[0], buffer);
-    free(curr);
+    logger_log(logger, (enum LogType) packet[0], buffer);
+    free(packet);
     free(buffer);
     if (pcpbuffer_is_empty(logger_buffer))
       sleep(1);
   }
 
-  printf("LOGGER: Exit signaled. Exitting.\n");
+  printf("[LOGGER] Exit signaled. Exitting.\n");
   watchdogpack_unregister(wdog_pack, wdog_register_status);
   watchdog_destroy(wdog);
   return NULL; 
+}
+
+void* printer_thread(void* arg)
+{
+  (void)arg;
+  char log_buffer[LOGGER_PACKET_SIZE];
+
+  logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[PRINTER] Creating watchdog.\n");
+
+  pthread_t tid = pthread_self();
+  Watchdog* wdog = watchdog_create(tid, WATCHDOG_LIMIT, "Printer");
+
+  if (wdog == NULL)
+    return NULL;
+
+  logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[PRINTER] Registering watchdog.\n");
+
+  int wdog_register_status = watchdogpack_register(wdog_pack, wdog);
+  
+  if (wdog_register_status == -1)
+    return NULL;
+
+  size_t analyzed_core_size = sizeof(AnalyzerPacket);
+
+  while(true)
+  {
+    if (exit_flag)
+      break;
+
+    logger_put(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[PRINTER] Snoozing watchdog.\n");
+    
+    watchdog_snooze(wdog);
+    
+    logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[PRINTER] Reading from buffer.\n");
+    // Consumer
+    pcpbuffer_lock(analyzer_printer_buffer);
+    if (pcpbuffer_is_empty(analyzer_printer_buffer))
+    {
+      logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[PRINTER] Buffer is empty, waiting for producer.\n");
+      pcpbuffer_wait_for_producer(analyzer_printer_buffer);
+      logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[PRINTER] Producer signaled. Continuing.\n");
+    }
+
+    if (exit_flag)
+      break;
+
+    logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[PRINTER] Acquiring packet.\n");
+    uint8_t* packet = pcpbuffer_get(analyzer_printer_buffer);
+    pcpbuffer_wake_producer(analyzer_printer_buffer);
+    pcpbuffer_unlock(analyzer_printer_buffer);
+
+    logger_put(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[PRINTER] Unpacking.\n");
+    
+    char* names[cpu_cores + 1];
+    double percentages[cpu_cores + 1];
+    for (size_t i = 0; i < cpu_cores + 1; i++)
+    {
+      AnalyzerPacket* analyzed_core = malloc(analyzed_core_size);
+      memcpy(&analyzed_core[0], &packet[i * analyzed_core_size], analyzed_core_size);
+      // strncpy(names[i], analyzed_core->core_name, CORE_NAME_LENGTH);
+      names[i] = malloc(CORE_NAME_LENGTH + 1);
+      strncpy(names[i], analyzed_core->core_name, CORE_NAME_LENGTH + 1);
+      names[i][CORE_NAME_LENGTH - 1] = '\0';
+      double percent = analyzed_core->cpu_percentage;
+      percentages[i] = percent;
+      analyzerpacket_destroy(analyzed_core);
+    }
+
+    logger_put(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[PRINTER] Pretty printing.\n");
+
+    printer_pretty_cpu_usage(names, percentages, cpu_cores + 1);
+  
+    for (size_t i = 0; i < cpu_cores + 1; i++)
+      free(names[i]);
+    free(packet);
+
+    if (pcpbuffer_is_empty(analyzer_printer_buffer))
+      sleep(1);
+  }
+
+  printf("[PRINTER] Exit signaled. Exitting.\n");
+  watchdogpack_unregister(wdog_pack, wdog_register_status);
+  watchdog_destroy(wdog);
+  return NULL; 
+  
 }
 
 void run_threads(void)
@@ -418,11 +502,13 @@ void run_threads(void)
   pthread_create(&tid[0], NULL, watchdog_thread, NULL);
   pthread_create(&tid[1], NULL, reader_thread, NULL);
   pthread_create(&tid[2], NULL, analyzer_thread, NULL);
+  pthread_create(&tid[3], NULL, printer_thread, NULL);
   pthread_create(&tid[4], NULL, logger_thread, (void*)&logger);
 
   pthread_join(tid[0], NULL);
   pthread_join(tid[1], NULL);
   pthread_join(tid[2], NULL);
+  pthread_join(tid[3], NULL);
   pthread_join(tid[4], NULL);
 
   logger_destroy(logger);

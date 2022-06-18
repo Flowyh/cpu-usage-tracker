@@ -2,10 +2,14 @@
 #include <signal.h>
 #include <string.h>
 
+#define VER 0.1
+
 int main(int argc, char const *argv[])
 {
   (void)argc;
   (void)argv;
+
+  printf("==========CPU usage tracker v%.1f=========\n", VER);
 
   // Assign SIGTERM/SIGINT handlers
   struct sigaction action;

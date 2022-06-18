@@ -15,7 +15,7 @@ AnalyzerPacket* analyzerpacket_create(const char* name)
   AnalyzerPacket* packet;
   packet = malloc(sizeof(*packet));
 
-  strcpy(&packet->core_name[0], name);
+  strncpy(&packet->core_name[0], name, CORE_NAME_LENGTH);
 
   packet->cpu_percentage = 0.0;
 
