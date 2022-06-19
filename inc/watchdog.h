@@ -10,6 +10,8 @@ Watchdog* watchdog_create(const pthread_t tid, const double limit, const char* n
 void watchdog_snooze(Watchdog* wdog);
 int watchdog_is_alarm_expired(const Watchdog* wdog);
 void watchdog_destroy(Watchdog* wdog);
+bool watchdog_get_exit_flag(Watchdog* wdog);
+void watchdog_enable_exit_flag(Watchdog* wdog);
 
 typedef struct WatchdogPack WatchdogPack;
 
@@ -21,5 +23,6 @@ int watchdogpack_register(WatchdogPack* wdog_pack, Watchdog* wdog);
 void watchdogpack_unregister(WatchdogPack* wdog_pack, size_t wdog_id);
 void watchdogpack_destroy(WatchdogPack* wdog_pack);
 int watchdogpack_check_alarms(const WatchdogPack* wdog_pack);
+void watchdogpack_panic(WatchdogPack* wdog_pack);
 
 #endif // !WATCHDOG_H

@@ -9,7 +9,6 @@ struct Logger
   FILE* restrict f;
   enum LogType level;
   char pad[4];
-  pthread_mutex_t mutex;
 };
 
 char* datetime_to_str(void)
@@ -56,7 +55,6 @@ Logger* logger_create(register const char* const restrict path, enum LogType lev
 
   *logger = (Logger){.f = fopen(path, "a+"),
                      .level = level,
-                     .mutex = PTHREAD_MUTEX_INITIALIZER,
                     };
   return logger;
 }

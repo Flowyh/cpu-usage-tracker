@@ -2,11 +2,15 @@
 #include <time.h>
 #include <stdlib.h>
 #include <stdio.h>
+
 struct Watchdog
 {
-  struct timespec alarm_clock; // 16
-  pthread_t id; // 8
-  double limit; // 8
+  pthread_mutex_t exit_flag_mutex;
+  struct timespec alarm_clock;
+  pthread_t id;
+  double limit;
+  bool exit_flag;
+  char pad[7];
   const char* name;
 };
 
@@ -23,6 +27,8 @@ Watchdog* watchdog_create(register const pthread_t tid, register const double li
   *watchdog = (Watchdog){.id = tid,
                          .limit = limit,
                          .name = name,
+                         .exit_flag = false,
+                         .exit_flag_mutex = PTHREAD_MUTEX_INITIALIZER,
                         };
   (void) clock_gettime(CLOCK_MONOTONIC, &watchdog->alarm_clock);
 
@@ -56,9 +62,32 @@ int watchdog_is_alarm_expired(register const Watchdog* restrict const wdog)
   return (diff) >= wdog->limit; 
 }
 
-void watchdog_destroy(Watchdog* restrict wdog)
+void watchdog_destroy(Watchdog* wdog)
 {
+  pthread_mutex_destroy(&wdog->exit_flag_mutex);
   free(wdog);
+}
+
+bool watchdog_get_exit_flag(Watchdog* const restrict wdog)
+{
+  if (wdog == NULL)
+    return false;
+
+  bool exit_flag;
+  pthread_mutex_lock(&wdog->exit_flag_mutex);
+  exit_flag = wdog->exit_flag;
+  pthread_mutex_unlock(&wdog->exit_flag_mutex);
+  return exit_flag;
+}
+
+void watchdog_enable_exit_flag(Watchdog* restrict wdog)
+{
+  if (wdog == NULL)
+    return;
+
+  pthread_mutex_lock(&wdog->exit_flag_mutex);
+  wdog->exit_flag = true;
+  pthread_mutex_unlock(&wdog->exit_flag_mutex);
 }
 
 struct WatchdogPack
@@ -127,6 +156,9 @@ void watchdogpack_unregister(WatchdogPack* restrict wdog_pack, size_t wdog_id)
 
 void watchdogpack_destroy(WatchdogPack* restrict wdog_pack)
 {
+  for (size_t i = 0; i < wdog_pack->registered; i++)
+    if (wdog_pack->pack[i] != NULL)
+      watchdog_destroy(wdog_pack->pack[i]);
   free(wdog_pack);
 }
 
@@ -134,10 +166,19 @@ int watchdogpack_check_alarms(register const WatchdogPack* const restrict wdog_p
 { 
   for (size_t i = 0; i < wdog_pack->registered; i++)
   {
-    if (wdog_pack->pack[i] != NULL && watchdog_is_alarm_expired(wdog_pack->pack[i]) == 1)
-    {
-      return (int) i;
-    }
+    if (wdog_pack->pack[i] != NULL)
+      if (wdog_pack->pack[i]->exit_flag || watchdog_is_alarm_expired(wdog_pack->pack[i]) == 1)
+        return (int) i;
   }
   return -1;
+}
+
+void watchdogpack_panic(WatchdogPack* const restrict wdog_pack)
+{
+  if (wdog_pack == NULL)
+    return;
+  
+  for (size_t i = 0; i < wdog_pack->registered; i++)
+    if (wdog_pack->pack[i] != NULL)
+      watchdog_enable_exit_flag(wdog_pack->pack[i]);
 }

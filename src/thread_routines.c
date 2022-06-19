@@ -41,8 +41,6 @@ static size_t cpu_cores;
 static WatchdogPack* restrict wdog_pack;
 // THREADS
 static pthread_t tid[THREADS_COUNT]; // 0 - watchdog, 1 - reader, 2 - analyzer, 3 - printer, 4 - logger
-// EXIT FLAG
-static bool exit_flag = false;
 // STATIC DECLARATIONS
 static size_t reader_get_packet_size(void);
 static size_t analyzer_get_packet_size(void);
@@ -57,7 +55,6 @@ void signal_exit(void)
   pcpbuffer_wake_producer(analyzer_printer_buffer);
   pcpbuffer_wake_consumer(logger_buffer);
   pcpbuffer_wake_producer(logger_buffer);
-  exit_flag = true;
 }
 
 // Buffer should be padded to LOGGER_PACKET_SIZE
@@ -86,6 +83,7 @@ void sigterm_graceful_exit(int signum)
   char buffer[LOGGER_PACKET_SIZE];
   logger_put_args(buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "Signal caught! Signum: %d.\n", signum);
   printf("Signal caught! Signum. %d\n", signum);
+  watchdogpack_panic(wdog_pack);
   signal_exit();
 }
 
@@ -163,7 +161,7 @@ static void* reader_thread(void* arg)
 
   while(true)
   {
-    if (exit_flag)
+    if (watchdog_get_exit_flag(wdog))
       break;
 
     logger_put(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[READER] Snoozing watchdog.\n");
@@ -216,9 +214,6 @@ static void* watchdog_thread(void* arg)
 
   while(true)
   {
-    if (exit_flag)
-      break;
-
     logger_put(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[WATCHDOG] Checking alarms.\n");
     
     alarm_check = watchdogpack_check_alarms(wdog_pack);
@@ -263,14 +258,14 @@ static void* analyzer_thread(void* arg)
 
   if (prev == NULL)
   {
-    signal_exit();
+    watchdog_enable_exit_flag(wdog);
   }
 
   bool prev_set = false;
 
   while(true)
   {
-    if (exit_flag)
+    if (watchdog_get_exit_flag(wdog))
       break;
 
     logger_put(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[ANALYZER] Snoozing watchdog.\n");
@@ -288,7 +283,7 @@ static void* analyzer_thread(void* arg)
       logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Producer signaled. Continuing.\n");
     }
 
-    if (exit_flag) // Possible bottleneck 
+    if (watchdog_get_exit_flag(wdog)) // Possible bottleneck 
       break;
     
     logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Acquiring packet.\n");
@@ -297,7 +292,7 @@ static void* analyzer_thread(void* arg)
 
     if (curr == NULL)
     {
-      signal_exit();
+      watchdog_enable_exit_flag(wdog);
       break;
     }
 
@@ -310,7 +305,7 @@ static void* analyzer_thread(void* arg)
 
     if (analyzer_packet == NULL)
     {
-      signal_exit();
+      watchdog_enable_exit_flag(wdog);
       break;
     }
 
@@ -386,7 +381,7 @@ static void* logger_thread(void* arg)
 
   while(true)
   {
-    if (exit_flag && pcpbuffer_is_empty(logger_buffer))
+    if (watchdog_get_exit_flag(wdog) && pcpbuffer_is_empty(logger_buffer))
       break;
 
     watchdog_snooze(wdog);
@@ -396,7 +391,7 @@ static void* logger_thread(void* arg)
     if (pcpbuffer_is_empty(logger_buffer))
       pcpbuffer_wait_for_producer(logger_buffer);
     
-    if (exit_flag && pcpbuffer_is_empty(logger_buffer))
+    if (watchdog_get_exit_flag(wdog) && pcpbuffer_is_empty(logger_buffer))
       break;
 
     char* restrict const packet = (char*) pcpbuffer_get(logger_buffer);
@@ -405,7 +400,7 @@ static void* logger_thread(void* arg)
 
     if (packet == NULL)
     {
-      signal_exit();
+      watchdog_enable_exit_flag(wdog);
       break;
     }
 
@@ -413,7 +408,7 @@ static void* logger_thread(void* arg)
 
     if (buffer == NULL)
     {
-      signal_exit();
+      watchdog_enable_exit_flag(wdog);
       break;
     }
 
@@ -456,7 +451,7 @@ static void* printer_thread(void* arg)
 
   while(true)
   {
-    if (exit_flag)
+    if (watchdog_get_exit_flag(wdog))
       break;
 
     logger_put(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[PRINTER] Snoozing watchdog.\n");
@@ -473,7 +468,7 @@ static void* printer_thread(void* arg)
       logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[PRINTER] Producer signaled. Continuing.\n");
     }
 
-    if (exit_flag)
+    if (watchdog_get_exit_flag(wdog))
       break;
 
     logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[PRINTER] Acquiring packet.\n");
@@ -491,7 +486,7 @@ static void* printer_thread(void* arg)
 
       if (analyzed_core == NULL)
       {
-        signal_exit();
+        watchdog_enable_exit_flag(wdog);
         break;
       }
 
@@ -501,7 +496,7 @@ static void* printer_thread(void* arg)
 
       if (names[i] == NULL)
       {
-        signal_exit();
+        watchdog_enable_exit_flag(wdog);
         break;
       }
 
