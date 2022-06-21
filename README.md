@@ -52,7 +52,7 @@ Additionally:
 ![threads diagram](./threads_diagram.svg)
 _Sketch 1. Application threads diagram._
 
-My main idea was to separate communication between threads into several data-race free buffers. To achieve that I've implemented a ring-buffer which utilizes **pthread cond vars** as a way of signaling empty/full buffer states (so it's a monitor):
+My main idea was to separate communication between threads into several data-race free buffers. To achieve that I've implemented a ring-buffer which utilizes **pthread cond vars** as a way of signaling empty/full buffer states (so essentially it's a monitor):
 
 ```c
 struct PCPBuffer
@@ -127,9 +127,11 @@ Each application thread has to create it's own Watchdog object and register it i
 ```c
 struct Watchdog
 {
-  struct timespec alarm_clock; // 16
-  pthread_t id; // 8
-  double limit; // 8
+  pthread_mutex_t exit_flag_mutex;
+  struct timespec alarm_clock;
+  pthread_t id;
+  double limit;
+  bool exit_flag;
   const char* name;
 };
 [...]
@@ -141,7 +143,7 @@ struct WatchdogPack
 };
 ```
 
-A Watchdog is a simple structure which holds a certain point in time, expiration limit (in seconds), thread id and a name.
+A Watchdog is a simple structure which holds a certain point in time, expiration limit (in seconds), thread id, a name and an exit flag boolean + it's mutex.
 
 Watchdog thread will try to check if enough time has expired for any Watchdog to go beyond expiration limit (to bark):
 
@@ -158,7 +160,7 @@ int watchdog_is_alarm_expired(register const Watchdog* restrict const wdog)
 }
 ```
 
-If so, Watchdog thread will issue an exit signal to each thread to stop execution.
+If so, Watchdog thread will enable exit flag booleans in each threads' Watchdog.
 
 In order to keep the app running, a thread with a Watchdog has to change the remembered Watchdog time (snooze it):
 
@@ -175,15 +177,15 @@ void watchdog_snooze(Watchdog* restrict wdog) {
 }
 ```
 
-If it's successful, Watchdog thread will not issue an exit signal.
+If it's successful, Watchdog thread will not enable any exit flag.
 
-This implementation is data-race free, because each thread has it's own Watchdog to snooze.
+This implementation is data-race free, because each thread has it's own exit flag (with a mutex) and a Watchdog to snooze.
 
 #### Exit signal
 
-Exitting from the app is also pretty simple. There's a global boolean (exit_flag) which is set to **false** if the app has to be running and to **true** if the app has to stop.
+Exitting from the app is also pretty simple. All threads have their own Watchdogs. Each watchdog has an exit flag which is set to **false** if the app has to be running and to **true** if the app has to stop.
 
-Each thread checks the value of this boolean. If it's **true**, it breaks it's task loop and deallocates used memory.
+Each thread checks the value of it's own boolean. If it's **true**, it breaks it's task loop and deallocates used memory.
 
 After each thread has stopped it's loop the main program deallocates buffers and other global variables.
 
