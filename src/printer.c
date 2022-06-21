@@ -10,7 +10,7 @@ const char* colors_get(register const enum Colors color)
   if (color < COLOR_RESET || color > CYAN)
     return "";
   
-  const char* restrict const colors_str[] = {
+  const char* const restrict colors_str[] = {
     "\x1b[0m", // Reset
     "\x1b[31m", // Red
     "\x1b[32m", // Green
@@ -30,7 +30,7 @@ const char* modes_get(register const enum Modes mode)
   if (mode < MODE_RESET || mode > MODE_STRIKE)
     return "";
 
-  const char* restrict const modes_str[] = {
+  const char* const restrict modes_str[] = {
     "\033[0m", // Reset
     "\033[1m", // Bold
     "\033[3m", // Italic

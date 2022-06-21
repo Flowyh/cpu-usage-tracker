@@ -23,10 +23,8 @@ PCPBuffer* pcpbuffer_create(register const size_t packet_size, register const si
   if (packet_size == 0 || packet_limit == 0)
     return NULL;
   
-  PCPBuffer* restrict buffer;
   register const size_t buffer_size = packet_size * packet_limit; // packet_size equals number of bytes for each packet
-
-  buffer = malloc(sizeof(*buffer) + sizeof(uint8_t) * buffer_size);
+  PCPBuffer* const buffer = malloc(sizeof(*buffer) + sizeof(uint8_t) * buffer_size);
 
   if (buffer == NULL)
     return NULL;
@@ -44,27 +42,27 @@ PCPBuffer* pcpbuffer_create(register const size_t packet_size, register const si
   return buffer;
 }
 
-size_t pcpbuffer_get_packet_size(register const PCPBuffer* const restrict buff)
+size_t pcpbuffer_get_packet_size(register const PCPBuffer* const buff)
 {
   return buff->packet_size;
 }
 
-size_t pcpbuffer_get_current_packets(register const PCPBuffer* const restrict buff)
+size_t pcpbuffer_get_current_packets(register const PCPBuffer* const buff)
 {
   return buff->current_packets;
 }
 
-size_t pcpbuffer_get_packet_limit(register const PCPBuffer* const restrict buff)
+size_t pcpbuffer_get_packet_limit(register const PCPBuffer* const buff)
 {
   return buff->packet_limit;
 }
 
-bool pcpbuffer_is_full(register const PCPBuffer* const restrict buff)
+bool pcpbuffer_is_full(register const PCPBuffer* const buff)
 {
   return buff->current_packets == buff->packet_limit;
 }
 
-bool pcpbuffer_is_empty(register const PCPBuffer* const restrict buff)
+bool pcpbuffer_is_empty(register const PCPBuffer* const buff)
 {
   return buff->current_packets == 0;
 }
@@ -85,13 +83,12 @@ void pcpbuffer_put(PCPBuffer* restrict buff, register const uint8_t packet[const
   buff->current_packets++;
 }
 
-uint8_t* pcpbuffer_get(PCPBuffer* restrict buff)
+uint8_t* pcpbuffer_get(PCPBuffer* const buff)
 {
   if (pcpbuffer_is_empty(buff))
     return NULL;
 
-  uint8_t* restrict packet;
-  packet = malloc(sizeof(packet) * buff->packet_size);
+  uint8_t* const packet = malloc(sizeof(packet) * buff->packet_size);
 
   if (packet == NULL)
     return NULL;
@@ -105,38 +102,41 @@ uint8_t* pcpbuffer_get(PCPBuffer* restrict buff)
   return packet;
 }
 
-void pcpbuffer_lock(PCPBuffer* restrict buff)
+void pcpbuffer_lock(PCPBuffer* buff)
 {
   pthread_mutex_lock(&buff->mutex);
 }
 
-void pcpbuffer_unlock(PCPBuffer* restrict buff)
+void pcpbuffer_unlock(PCPBuffer* buff)
 {
   pthread_mutex_unlock(&buff->mutex);
 }
 
-void pcpbuffer_wake_producer(PCPBuffer* restrict buff)
+void pcpbuffer_wake_producer(PCPBuffer* buff)
 {
   pthread_cond_signal(&buff->can_produce);
 }
 
-void pcpbuffer_wake_consumer(PCPBuffer* restrict buff)
+void pcpbuffer_wake_consumer(PCPBuffer* buff)
 {
   pthread_cond_signal(&buff->can_consume);
 }
 
-void pcpbuffer_wait_for_producer(PCPBuffer* restrict buff)
+void pcpbuffer_wait_for_producer(PCPBuffer* buff)
 {
   pthread_cond_wait(&buff->can_consume, &buff->mutex);
 }
 
-void pcpbuffer_wait_for_consumer(PCPBuffer* restrict buff)
+void pcpbuffer_wait_for_consumer(PCPBuffer* buff)
 {
   pthread_cond_wait(&buff->can_produce, &buff->mutex);
 }
 
-void pcpbuffer_destroy(PCPBuffer* restrict buff)
+void pcpbuffer_destroy(PCPBuffer* buff)
 {
+  if (buff == NULL)
+    return;
+
   pthread_mutex_destroy(&buff->mutex);
   pthread_cond_destroy(&buff->can_produce);
   pthread_cond_destroy(&buff->can_consume);

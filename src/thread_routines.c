@@ -42,10 +42,10 @@ static WatchdogPack* restrict wdog_pack;
 // THREADS
 static pthread_t tid[THREADS_COUNT]; // 0 - watchdog, 1 - reader, 2 - analyzer, 3 - printer, 4 - logger
 // STATIC DECLARATIONS
-static size_t reader_get_packet_size(void);
-static size_t analyzer_get_packet_size(void);
-// Reader func
-static uint8_t* reader_read_proc_stat(register const Reader* const restrict reader);
+// static size_t reader_get_packet_size(void);
+// static size_t analyzer_get_packet_size(void);
+// // Reader func
+// static uint8_t* reader_read_proc_stat(register const Reader* const restrict reader);
 
 void signal_exit(void)
 {
@@ -60,7 +60,7 @@ void signal_exit(void)
 // Buffer should be padded to LOGGER_PACKET_SIZE
 static void logger_put_to_buffer (register const char buffer[const], register const enum LogType level)
 {
-  uint8_t* restrict packet = malloc(LOGGER_PACKET_SIZE);
+  uint8_t* const restrict packet = malloc(LOGGER_PACKET_SIZE);
 
   if (packet == NULL)
     return;
@@ -101,8 +101,8 @@ static size_t analyzer_get_packet_size(void)
 
 static uint8_t* reader_read_proc_stat(register const Reader* const restrict reader)
 {
-  ProcStatWrapper* restrict stats_wrapper = procstatwrapper_create();
-  uint8_t* restrict packet = malloc(reader_packet_size);
+  ProcStatWrapper* const restrict stats_wrapper = procstatwrapper_create();
+  uint8_t* const restrict packet = malloc(reader_packet_size);
 
   if (packet == NULL)
     return NULL;
@@ -136,7 +136,7 @@ static uint8_t* reader_read_proc_stat(register const Reader* const restrict read
 static void* reader_thread(void* arg)
 {
   (void)(arg);
-  Reader* restrict proc_stat_reader = reader_create("/proc/stat", READER_SLEEP);
+  Reader* const restrict proc_stat_reader = reader_create("/proc/stat", READER_SLEEP);
   char log_buffer[LOGGER_PACKET_SIZE];
   
 
@@ -146,7 +146,7 @@ static void* reader_thread(void* arg)
   logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[READER] Creating watchdog.\n");
 
   register const pthread_t thread_id = pthread_self();
-  Watchdog* restrict const wdog = watchdog_create(thread_id, WATCHDOG_LIMIT, "Reader");
+  Watchdog* const restrict wdog = watchdog_create(thread_id, WATCHDOG_LIMIT, "Reader");
 
   if (wdog == NULL)
     return NULL;
@@ -179,7 +179,7 @@ static void* reader_thread(void* arg)
 
     logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[READER] Reading from file.\n");
 
-    uint8_t* restrict packet = reader_read_proc_stat(proc_stat_reader);
+    uint8_t* const restrict packet = reader_read_proc_stat(proc_stat_reader);
     
     pcpbuffer_lock(reader_analyzer_buffer);
     if (pcpbuffer_is_full(reader_analyzer_buffer))
@@ -239,7 +239,7 @@ static void* analyzer_thread(void* arg)
   logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Creating watchdog.\n");
 
   register const pthread_t thread_id = pthread_self();
-  Watchdog* restrict const wdog = watchdog_create(thread_id, WATCHDOG_LIMIT, "Analyzer");
+  Watchdog* const restrict wdog = watchdog_create(thread_id, WATCHDOG_LIMIT, "Analyzer");
 
   if (wdog == NULL)
     return NULL;
@@ -254,7 +254,7 @@ static void* analyzer_thread(void* arg)
   register const size_t core_info_size = sizeof(ProcStatWrapper);
   register const size_t analyzed_core_size = sizeof(AnalyzerPacket);
 
-  uint8_t* restrict prev = malloc(reader_packet_size);
+  uint8_t* const restrict prev = malloc(reader_packet_size);
 
   if (prev == NULL)
   {
@@ -288,7 +288,7 @@ static void* analyzer_thread(void* arg)
     
     logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Acquiring packet.\n");
     
-    uint8_t* restrict const curr = pcpbuffer_get(reader_analyzer_buffer);
+    uint8_t* const restrict curr = pcpbuffer_get(reader_analyzer_buffer);
 
     if (curr == NULL)
     {
@@ -301,7 +301,7 @@ static void* analyzer_thread(void* arg)
 
     // Analyze read packet
     logger_put(log_buffer, LOGTYPE_DEBUG, LOGGER_PACKET_SIZE, "[ANALYZER] Analyzing read packet.\n");
-    uint8_t* restrict analyzer_packet = malloc(analyzer_packet_size);
+    uint8_t* const restrict analyzer_packet = malloc(analyzer_packet_size);
 
     if (analyzer_packet == NULL)
     {
@@ -311,8 +311,8 @@ static void* analyzer_thread(void* arg)
 
     for (size_t i = 0; i < cpu_cores + 1; i++)
     {
-      ProcStatWrapper* restrict curr_stats = procstatwrapper_create();
-      ProcStatWrapper* restrict prev_stats = procstatwrapper_create();
+      ProcStatWrapper* const restrict curr_stats = procstatwrapper_create();
+      ProcStatWrapper* const restrict prev_stats = procstatwrapper_create();
       memcpy(&curr_stats[0], &curr[i * core_info_size], core_info_size);
 
       // procstatwrapper_print(curr_stats);
@@ -322,7 +322,7 @@ static void* analyzer_thread(void* arg)
 
       memcpy(&prev_stats[0], &prev[i * core_info_size], core_info_size);
 
-      AnalyzerPacket* restrict const analyzed_core = analyzer_cpu_usage_packet(prev_stats, curr_stats);
+      AnalyzerPacket* const restrict analyzed_core = analyzer_cpu_usage_packet(prev_stats, curr_stats);
       memcpy(&analyzer_packet[i * analyzed_core_size], &analyzed_core[0], analyzed_core_size); 
       // analyzerpacket_print(analyzed_core);
 
@@ -330,7 +330,6 @@ static void* analyzer_thread(void* arg)
       procstatwrapper_destroy(curr_stats);
       procstatwrapper_destroy(prev_stats);
     }
-
 
     logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[ANALYZER] Sending to next buffer.\n");
 
@@ -366,10 +365,10 @@ static void* analyzer_thread(void* arg)
 
 static void* logger_thread(void* arg)
 {
-  Logger* restrict logger = *(Logger**)arg;
+  Logger* const restrict logger = *(Logger**)arg;
 
   register const pthread_t thread_id = pthread_self();
-  Watchdog* restrict const wdog = watchdog_create(thread_id, WATCHDOG_LIMIT, "Logger");
+  Watchdog* const restrict wdog = watchdog_create(thread_id, WATCHDOG_LIMIT, "Logger");
 
   if (wdog == NULL)
     return NULL;
@@ -394,7 +393,7 @@ static void* logger_thread(void* arg)
     if (watchdog_get_exit_flag(wdog) && pcpbuffer_is_empty(logger_buffer))
       break;
 
-    char* restrict const packet = (char*) pcpbuffer_get(logger_buffer);
+    char* const restrict packet = (char*) pcpbuffer_get(logger_buffer);
     pcpbuffer_wake_producer(logger_buffer);
     pcpbuffer_unlock(logger_buffer);
 
@@ -404,7 +403,7 @@ static void* logger_thread(void* arg)
       break;
     }
 
-    char* restrict buffer = malloc(LOGGER_PACKET_SIZE - 1);
+    char* const restrict buffer = malloc(LOGGER_PACKET_SIZE - 1);
 
     if (buffer == NULL)
     {
@@ -435,7 +434,7 @@ static void* printer_thread(void* arg)
   logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[PRINTER] Creating watchdog.\n");
 
   register const pthread_t thread_id = pthread_self();
-  Watchdog* restrict const wdog = watchdog_create(thread_id, WATCHDOG_LIMIT, "Printer");
+  Watchdog* const restrict wdog = watchdog_create(thread_id, WATCHDOG_LIMIT, "Printer");
 
   if (wdog == NULL)
     return NULL;
@@ -472,7 +471,7 @@ static void* printer_thread(void* arg)
       break;
 
     logger_put(log_buffer, LOGTYPE_INFO, LOGGER_PACKET_SIZE, "[PRINTER] Acquiring packet.\n");
-    uint8_t* restrict const packet = pcpbuffer_get(analyzer_printer_buffer);
+    uint8_t* const restrict packet = pcpbuffer_get(analyzer_printer_buffer);
     pcpbuffer_wake_producer(analyzer_printer_buffer);
     pcpbuffer_unlock(analyzer_printer_buffer);
 
@@ -482,7 +481,7 @@ static void* printer_thread(void* arg)
     double percentages[cpu_cores + 1];
     for (size_t i = 0; i < cpu_cores + 1; i++)
     {
-      AnalyzerPacket* restrict analyzed_core = malloc(analyzed_core_size);
+      AnalyzerPacket* const restrict analyzed_core = malloc(analyzed_core_size);
 
       if (analyzed_core == NULL)
       {

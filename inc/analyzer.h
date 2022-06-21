@@ -11,7 +11,7 @@ typedef struct AnalyzerPacket {
 
 AnalyzerPacket* analyzerpacket_create(const char* name);
 void analyzerpacket_destroy(AnalyzerPacket* packet);
-AnalyzerPacket* analyzer_cpu_usage_packet(const ProcStatWrapper* prev_stats, const ProcStatWrapper* curr_stats);
+AnalyzerPacket* analyzer_cpu_usage_packet(const ProcStatWrapper* restrict prev_stats, const ProcStatWrapper* restrict curr_stats);
 void analyzerpacket_print(const AnalyzerPacket* packet);
 
 #endif // !ANALYZER_H

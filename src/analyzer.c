@@ -12,8 +12,7 @@ AnalyzerPacket* analyzerpacket_create(register const char* const restrict name)
   if (name_len > CORE_NAME_LENGTH || name_len == 0)
     return NULL;
 
-  AnalyzerPacket* restrict packet;
-  packet = malloc(sizeof(*packet));
+  AnalyzerPacket* const packet = malloc(sizeof(*packet));
 
   if (packet == NULL)
     return NULL;
@@ -25,8 +24,11 @@ AnalyzerPacket* analyzerpacket_create(register const char* const restrict name)
   return packet;
 }
 
-void analyzerpacket_destroy(AnalyzerPacket* restrict packet)
+void analyzerpacket_destroy(AnalyzerPacket* const packet)
 {
+  if (packet == NULL)
+    return;
+
   free(packet);
 }
 
@@ -35,7 +37,7 @@ AnalyzerPacket* analyzer_cpu_usage_packet(register const ProcStatWrapper* const 
   if (prev_stats == NULL)
     return NULL;
 
-  AnalyzerPacket* restrict packet = analyzerpacket_create(prev_stats->core_name); 
+  AnalyzerPacket* const packet = analyzerpacket_create(prev_stats->core_name); 
 
   if (curr_stats == NULL) // This is the first packet, return core name and 0
     return packet;
@@ -73,7 +75,7 @@ AnalyzerPacket* analyzer_cpu_usage_packet(register const ProcStatWrapper* const 
   return packet;
 }
 
-void analyzerpacket_print(register const AnalyzerPacket* const restrict packet)
+void analyzerpacket_print(register const AnalyzerPacket* const packet)
 {
   if (packet == NULL)
     return;

@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 
-Reader* reader_create(register const char* const restrict path, register const size_t read_interval)
+Reader* reader_create(register const char* const path, register const size_t read_interval)
 {
   if (path == NULL)
     return NULL;
@@ -10,8 +10,7 @@ Reader* reader_create(register const char* const restrict path, register const s
   if (read_interval == 0)
     return NULL;
 
-  Reader* restrict reader;
-  reader = malloc(sizeof(*reader));
+  Reader* const reader = malloc(sizeof(*reader));
 
   if (reader == NULL)
     return NULL;
@@ -32,7 +31,7 @@ Reader* reader_create(register const char* const restrict path, register const s
   return reader;
 }
 
-void reader_rewind(Reader* restrict reader)
+void reader_rewind(Reader* const reader)
 {
   // https://stackoverflow.com/a/16267995/18870209
   // Apparently fseeking/rewinding doesn't help with rereading updated /proc/stat file
@@ -43,7 +42,7 @@ void reader_rewind(Reader* restrict reader)
   // fseek(reader->f, 0, SEEK_SET);
 }
 
-void reader_destroy(Reader* restrict reader)
+void reader_destroy(Reader* const reader)
 {
   if (reader == NULL)
     return;

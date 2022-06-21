@@ -23,12 +23,12 @@ enum Modes {
   MODE_STRIKE,
 };
 
-const char* colors_get(const enum Colors color);
-const char* modes_get(const enum Modes mode);
+const char* colors_get(enum Colors color);
+const char* modes_get(enum Modes mode);
 
-char* printer_histogram_horizontal_bar(const size_t width, const double fill);
-char* printer_print_line(const size_t width, const char line_char);
+char* printer_histogram_horizontal_bar(size_t width, double fill);
+char* printer_print_line(size_t width, char line_char);
 
-void printer_pretty_cpu_usage(char* names[], const double percentages[], const size_t cores);
+void printer_pretty_cpu_usage(char* names[], const double percentages[], size_t cores);
 
 #endif // !PRINTER_H

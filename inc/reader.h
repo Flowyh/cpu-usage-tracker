@@ -14,7 +14,7 @@ typedef struct Reader
 
 typedef uint8_t* (*reader_func_t)(const Reader*);
 
-Reader* reader_create(const char* path, const size_t read_interval);
+Reader* reader_create(const char* path, size_t read_interval);
 void reader_rewind(Reader* reader);
 void reader_destroy(Reader* reader);
 

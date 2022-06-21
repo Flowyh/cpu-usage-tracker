@@ -7,7 +7,7 @@
 
 typedef struct PCPBuffer PCPBuffer;
 
-PCPBuffer* pcpbuffer_create(const size_t packet_size, const size_t packet_limit);
+PCPBuffer* pcpbuffer_create(size_t packet_size, size_t packet_limit);
 // GETTER
 size_t pcpbuffer_get_packet_size(const PCPBuffer* buff);
 size_t pcpbuffer_get_current_packets(const PCPBuffer* buff);
@@ -16,7 +16,7 @@ size_t pcpbuffer_get_packet_limit(const PCPBuffer* buff);
 bool pcpbuffer_is_full(const PCPBuffer* buff);
 bool pcpbuffer_is_empty(const PCPBuffer* buff);
 // BUFFER HANDLERS
-void pcpbuffer_put(PCPBuffer* buff, const uint8_t packet[], const size_t packet_size);
+void pcpbuffer_put(PCPBuffer* restrict buff, const uint8_t packet[], size_t packet_size);
 uint8_t* pcpbuffer_get(PCPBuffer* buff);
 // PTHREAD LOCKS/CONDS
 void pcpbuffer_lock(PCPBuffer* buff);

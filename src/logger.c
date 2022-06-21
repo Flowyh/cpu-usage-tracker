@@ -6,7 +6,7 @@
 
 struct Logger
 {
-  FILE* restrict f;
+  FILE* f;
   enum LogType level;
   char pad[4];
 };
@@ -19,7 +19,7 @@ char* datetime_to_str(void)
     return NULL;
   
   const time_t now = time(NULL);
-  struct tm* restrict t = localtime(&now);
+  struct tm* t = localtime(&now);
 
   strftime(datetime_str, 49, "%d-%m-%Y %H:%M:%S", t);
   return datetime_str;
@@ -29,20 +29,19 @@ static const char* logtype_to_str(register const enum LogType type) {
   if (type < LOGTYPE_ERROR || type > LOGTYPE_DEBUG)
     return "????";
   // Jump table (sort of)
-  const char* logtype_str[] = { "ERROR", "INFO", "DEBUG" };
+  const char* restrict logtype_str[] = { "ERROR", "INFO", "DEBUG" };
   return logtype_str[type];
 }
 
-static void print_log_prefix(register const Logger* const restrict logger, register const enum LogType type) {
+static void print_log_prefix(register const Logger* const logger, register const enum LogType type) {
   char* datetime_str = datetime_to_str();
   fprintf(logger->f, "[%s][%s]", logtype_to_str(type), datetime_str);
   free(datetime_str);
 }
 
-Logger* logger_create(register const char* const restrict path, enum LogType level)
+Logger* logger_create(register const char* const path, enum LogType level)
 {
-  Logger* restrict logger;
-  logger = malloc(sizeof(*logger));
+  Logger* const logger = malloc(sizeof(*logger));
   
   if (logger == NULL)
     return NULL;
@@ -59,11 +58,11 @@ Logger* logger_create(register const char* const restrict path, enum LogType lev
   return logger;
 }
 
-void logger_set_level(Logger* restrict logger, register const enum LogType level) {
+void logger_set_level(Logger* const logger, register const enum LogType level) {
   logger->level = level;
 }
 
-void logger_log(register const Logger* const restrict logger, register const enum LogType level, register const char* const restrict msg) {
+void logger_log(register const Logger* const logger, register const enum LogType level, register const char* const msg) {
   if (logger->level < level)
     return;
 
@@ -72,8 +71,11 @@ void logger_log(register const Logger* const restrict logger, register const enu
   fflush(logger->f);
 }
 
-void logger_destroy(Logger* logger)
+void logger_destroy(Logger* const logger)
 {
+  if (logger == NULL)
+    return;
+  
   if (logger->f != NULL)
     fclose(logger->f);
   free(logger);

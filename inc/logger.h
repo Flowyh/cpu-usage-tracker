@@ -11,9 +11,9 @@ enum LogType {
   LOGTYPE_DEBUG,
 };
 
-Logger* logger_create(const char* path, const enum LogType level);
-void logger_set_level(Logger*, const enum LogType level);
-void logger_log(const Logger*, const enum LogType level, const char* msg);
+Logger* logger_create(const char* path, enum LogType level);
+void logger_set_level(Logger*, enum LogType level);
+void logger_log(const Logger*, enum LogType level, const char* msg);
 void logger_destroy(Logger* logger);
 char* datetime_to_str(void);
 
